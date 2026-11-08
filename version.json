@@ -1,6 +1,6 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1",
-  "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/releases/download/v1.1/SwipeClean.apk",
-  "changelog": "Apple Photos style albums, date & time displayed on photo cards, and OTA auto-updates!"
+  "versionCode": 3,
+  "versionName": "1.2",
+  "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/releases/download/v1.2/SwipeClean.apk",
+  "changelog": "Tap-to-zoom inspection with pinch & pan, gesture-first deck, and floating quick undo!"
 }
