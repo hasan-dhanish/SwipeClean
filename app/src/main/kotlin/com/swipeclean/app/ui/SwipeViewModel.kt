@@ -21,7 +21,8 @@ sealed interface UiState {
     object Loading : UiState
     data class FolderList(
         val folders: List<FolderItem>,
-        val totalPendingTrashCount: Int = 0
+        val totalPendingTrashCount: Int = 0,
+        val pendingTrashItems: List<MediaItem> = emptyList()
     ) : UiState
     data class Swiping(
         val folderName: String,
@@ -116,7 +117,12 @@ class SwipeViewModel(
             _uiState.value = UiState.Loading
             val folders = repository.getFolders()
             val pendingTrashIds = trashStorage.getTrashedIds()
-            _uiState.value = UiState.FolderList(folders, totalPendingTrashCount = pendingTrashIds.size)
+            val pendingTrashItems = repository.getMediaByIds(pendingTrashIds.toList())
+            _uiState.value = UiState.FolderList(
+                folders = folders,
+                totalPendingTrashCount = pendingTrashIds.size,
+                pendingTrashItems = pendingTrashItems
+            )
         }
     }
 
@@ -223,21 +229,41 @@ class SwipeViewModel(
         }
     }
 
+    private var lastRequestedTrashIds: List<Long> = emptyList()
+
     fun removeFromTrash(item: MediaItem) {
         trashStorage.removeTrashedId(item.id)
-        val state = _uiState.value as? UiState.Swiping ?: return
-        _uiState.update {
-            state.copy(
-                trashedItems = state.trashedItems.filterNot { it.id == item.id }
-            )
+        when (val state = _uiState.value) {
+            is UiState.FolderList -> {
+                val updated = state.pendingTrashItems.filterNot { it.id == item.id }
+                _uiState.update {
+                    state.copy(
+                        totalPendingTrashCount = updated.size,
+                        pendingTrashItems = updated
+                    )
+                }
+            }
+            is UiState.Swiping -> {
+                _uiState.update {
+                    state.copy(
+                        trashedItems = state.trashedItems.filterNot { it.id == item.id }
+                    )
+                }
+            }
+            else -> {}
         }
     }
 
     fun requestMoveTrash(onIntentReady: (IntentSenderRequest) -> Unit) {
-        val state = _uiState.value as? UiState.Swiping ?: return
-        if (state.trashedItems.isEmpty()) return
+        val itemsToTrash = when (val state = _uiState.value) {
+            is UiState.FolderList -> state.pendingTrashItems
+            is UiState.Swiping -> state.trashedItems
+            else -> emptyList()
+        }
+        if (itemsToTrash.isEmpty()) return
 
-        val uris = state.trashedItems.map { it.uri }
+        lastRequestedTrashIds = itemsToTrash.map { it.id }
+        val uris = itemsToTrash.map { it.uri }
         val pendingIntent = repository.createTrashRequest(uris)
         if (pendingIntent != null) {
             val request = IntentSenderRequest.Builder(pendingIntent.intentSender).build()
@@ -251,14 +277,20 @@ class SwipeViewModel(
     }
 
     fun onTrashSuccess() {
-        val state = _uiState.value as? UiState.Swiping ?: return
-        val trashedIds = state.trashedItems.map { it.id }
-        trashStorage.removeTrashedIds(trashedIds)
-
-        _uiState.update {
-            state.copy(
-                trashedItems = emptyList()
-            )
+        trashStorage.removeTrashedIds(lastRequestedTrashIds)
+        when (val state = _uiState.value) {
+            is UiState.FolderList -> {
+                loadFolders()
+            }
+            is UiState.Swiping -> {
+                val trashedSet = lastRequestedTrashIds.toSet()
+                _uiState.update {
+                    state.copy(
+                        trashedItems = state.trashedItems.filterNot { trashedSet.contains(it.id) }
+                    )
+                }
+            }
+            else -> {}
         }
     }
 

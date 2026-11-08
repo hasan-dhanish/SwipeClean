@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -143,7 +144,7 @@ fun SwipeCleanAppRoot(
             is UiState.FolderList -> {
                 AppleFolderGridScreen(
                     folders = state.folders,
-                    pendingTrashCount = state.totalPendingTrashCount,
+                    pendingTrashItems = state.pendingTrashItems,
                     updateInfo = updateInfo,
                     onFolderClick = { folder -> viewModel.selectFolder(folder.name) },
                     onRefresh = {
@@ -152,6 +153,14 @@ fun SwipeCleanAppRoot(
                     },
                     onTriggerUpdate = {
                         viewModel.openUpdateDialog()
+                    },
+                    onRequestTrash = {
+                        viewModel.requestMoveTrash { request ->
+                            trashLauncher.launch(request)
+                        }
+                    },
+                    onRemoveFromTrash = { item ->
+                        viewModel.removeFromTrash(item)
                     }
                 )
             }
@@ -267,14 +276,29 @@ fun PermissionRequestScreen(
 @Composable
 fun AppleFolderGridScreen(
     folders: List<FolderItem>,
-    pendingTrashCount: Int,
+    pendingTrashItems: List<MediaItem>,
     updateInfo: UpdateInfo? = null,
     onFolderClick: (FolderItem) -> Unit,
     onRefresh: () -> Unit,
-    onTriggerUpdate: () -> Unit = {}
+    onTriggerUpdate: () -> Unit = {},
+    onRequestTrash: () -> Unit = {},
+    onRemoveFromTrash: (MediaItem) -> Unit = {}
 ) {
     val context = LocalContext.current
     val screenshotFolder = folders.firstOrNull { it.name.contains("Screenshot", ignoreCase = true) }
+    var showPendingTrashSheet by remember { mutableStateOf(false) }
+
+    val trashedBytes = remember(pendingTrashItems) {
+        pendingTrashItems.sumOf { it.size }
+    }
+    val formattedTrashSize = remember(trashedBytes) {
+        when {
+            trashedBytes >= 1024 * 1024 * 1024 -> String.format(Locale.US, "%.1f GB", trashedBytes / (1024f * 1024f * 1024f))
+            trashedBytes >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB", trashedBytes / (1024f * 1024f))
+            trashedBytes >= 1024 -> String.format(Locale.US, "%.1f KB", trashedBytes / 1024f)
+            else -> "$trashedBytes B"
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFF000000),
@@ -306,6 +330,38 @@ fun AppleFolderGridScreen(
                                 Text(
                                     text = "Update",
                                     color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // Homepage Recycle Bin Button (Top Bar Action)
+                    if (pendingTrashItems.isNotEmpty()) {
+                        Surface(
+                            onClick = { showPendingTrashSheet = true },
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFF2E1518),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF3B30).copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .padding(end = 10.dp)
+                                .height(36.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Recycle Bin",
+                                    tint = Color(0xFFFF3B30),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${pendingTrashItems.size}",
+                                    color = Color(0xFFFF3B30),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -353,14 +409,30 @@ fun AppleFolderGridScreen(
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = (-0.5).sp
                     )
-                    if (pendingTrashCount > 0) {
+                    if (pendingTrashItems.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "$pendingTrashCount items saved in pending trash",
-                            color = Color(0xFFFF453A),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Surface(
+                            onClick = { showPendingTrashSheet = true },
+                            color = Color.Transparent
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${pendingTrashItems.size} items in pending trash • $formattedTrashSize",
+                                    color = Color(0xFFFF453A),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF453A),
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .graphicsLayer { rotationZ = 180f }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -486,10 +558,106 @@ fun AppleFolderGridScreen(
                 )
             }
 
+            // Apple Utilities Section: Pending Recycle Bin
             item(span = { GridItemSpan(2) }) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Utilities",
+                    color = Color.White,
+                    fontSize = 21.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.3).sp,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 2.dp)
+                )
+            }
+
+            item(span = { GridItemSpan(2) }) {
+                Surface(
+                    onClick = { showPendingTrashSheet = true },
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFF1C1C1E),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF38383A)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(76.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF2E1518),
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF3B30),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Pending Recycle Bin",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (pendingTrashItems.isNotEmpty()) {
+                                    "${pendingTrashItems.size} items waiting to be moved • $formattedTrashSize"
+                                } else {
+                                    "0 items • Everything clean"
+                                },
+                                color = if (pendingTrashItems.isNotEmpty()) Color(0xFFFF453A) else Color(0xFF8E8E93),
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        if (pendingTrashItems.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF2E1518),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF3B30).copy(alpha = 0.5f))
+                            ) {
+                                Text(
+                                    text = "Review",
+                                    color = Color(0xFFFF3B30),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item(span = { GridItemSpan(2) }) {
+                Spacer(modifier = Modifier.height(28.dp))
             }
         }
+    }
+
+    if (showPendingTrashSheet) {
+        PendingTrashBottomSheet(
+            items = pendingTrashItems,
+            formattedTrashSize = formattedTrashSize,
+            onDismiss = { showPendingTrashSheet = false },
+            onRequestTrash = {
+                showPendingTrashSheet = false
+                onRequestTrash()
+            },
+            onRemoveFromTrash = onRemoveFromTrash
+        )
     }
 }
 
@@ -872,74 +1040,108 @@ fun SwipingDeckScreen(
     }
 
     if (showTrashSheet) {
-        val context = LocalContext.current
-        ModalBottomSheet(
-            onDismissRequest = { showTrashSheet = false },
-            containerColor = Color(0xFF1C1C1E),
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Pending Recycle Bin",
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "${state.trashedItems.size} items • $formattedTrashSize",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF8E8E93)
-                        )
-                    }
+        PendingTrashBottomSheet(
+            items = state.trashedItems,
+            formattedTrashSize = formattedTrashSize,
+            onDismiss = { showTrashSheet = false },
+            onRequestTrash = {
+                showTrashSheet = false
+                onRequestTrash()
+            },
+            onRemoveFromTrash = onRemoveFromTrash
+        )
+    }
+}
 
+/**
+ * Shared Authentic Apple Bottom Sheet for Reviewing & Confirming Pending Recycle Bin
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PendingTrashBottomSheet(
+    items: List<MediaItem>,
+    formattedTrashSize: String,
+    onDismiss: () -> Unit,
+    onRequestTrash: () -> Unit,
+    onRemoveFromTrash: (MediaItem) -> Unit
+) {
+    val context = LocalContext.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Pending Recycle Bin",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        text = "${items.size} items • $formattedTrashSize",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF8E8E93)
+                    )
+                }
+
+                if (items.isNotEmpty()) {
                     Surface(
-                        onClick = {
-                            showTrashSheet = false
-                            onRequestTrash()
-                        },
-                        shape = RoundedCornerShape(10.dp),
+                        onClick = onRequestTrash,
+                        shape = RoundedCornerShape(12.dp),
                         color = Color(0xFFFF3B30),
-                        modifier = Modifier.height(34.dp)
+                        modifier = Modifier.height(36.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 "Move to Trash",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                fontSize = 13.sp
                             )
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
+            if (items.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No pending photos in Recycle Bin", color = Color(0xFF8E8E93), fontSize = 14.sp)
+                }
+            } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 380.dp),
+                        .heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(state.trashedItems, key = { it.id }) { item ->
+                    items(items, key = { it.id }) { item ->
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color(0xFF2C2C2E),
@@ -954,7 +1156,7 @@ fun SwipingDeckScreen(
                                 AsyncImage(
                                     model = ImageRequest.Builder(context)
                                         .data(item.uri)
-                                        .size(120, 120)
+                                        .size(140, 140)
                                         .crossfade(true)
                                         .build(),
                                     contentDescription = item.name,
@@ -989,6 +1191,7 @@ fun SwipingDeckScreen(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
