@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
@@ -495,6 +496,7 @@ fun SwipingDeckScreen(
 ) {
     var showTrashSheet by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+    var inspectingItem by remember { mutableStateOf<MediaItem?>(null) }
 
     var triggerLeft by remember { mutableStateOf(false) }
     var triggerRight by remember { mutableStateOf(false) }
@@ -676,7 +678,10 @@ fun SwipingDeckScreen(
                                 onSwipeRight()
                             },
                             triggerSwipeLeft = triggerLeft,
-                            triggerSwipeRight = triggerRight
+                            triggerSwipeRight = triggerRight,
+                            onTap = {
+                                inspectingItem = currentCard
+                            }
                         )
                     }
                 } else {
@@ -767,31 +772,49 @@ fun SwipingDeckScreen(
                 }
             }
 
-            if (currentCard != null) {
-                TinderActionButtons(
-                    onTrash = {
-                        if (!isBusy) {
-                            isBusy = true
-                            triggerLeft = true
-                        }
-                    },
-                    onUndo = {
-                        if (!isBusy) {
-                            onUndo()
-                        }
-                    },
-                    onKeep = {
-                        if (!isBusy) {
-                            isBusy = true
-                            triggerRight = true
-                        }
-                    },
-                    isUndoEnabled = state.history.isNotEmpty() && !isBusy
-                )
+            // Floating Quick Undo Button Alone (Minimalist & Gesture-First)
+            if (state.history.isNotEmpty() && !isBusy && currentCard != null) {
+                Surface(
+                    onClick = onUndo,
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xDD1C1C1E),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier
+                        .padding(vertical = 14.dp)
+                        .height(44.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = "Quick Undo",
+                            tint = Color(0xFFFF9F0A), // Apple Amber
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Undo",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             } else {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
+    }
+
+    // Fullscreen Tap-to-Zoom Mode (Pinch to zoom in/out, pan, tap again to return)
+    inspectingItem?.let { item ->
+        ZoomableImageViewer(
+            item = item,
+            onDismiss = { inspectingItem = null }
+        )
     }
 
     if (showTrashSheet) {

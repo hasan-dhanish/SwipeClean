@@ -7,7 +7,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -132,6 +137,7 @@ fun SwipeCard(
     onSwipedRight: () -> Unit,
     triggerSwipeLeft: Boolean,
     triggerSwipeRight: Boolean,
+    onTap: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -177,34 +183,56 @@ fun SwipeCard(
             }
             .pointerInput(item.id) {
                 if (isDismissed) return@pointerInput
-                detectDragGestures(
-                    onDrag = { change, dragAmount ->
-                        if (!isDismissed) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var isDrag = false
+                    var totalDragX = 0f
+                    var totalDragY = 0f
+                    val touchSlop = viewConfiguration.touchSlop
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) {
+                            if (!isDrag) {
+                                onTap()
+                            } else {
+                                scope.launch {
+                                    if (dragX.value > threshold) {
+                                        isDismissed = true
+                                        dragX.animateTo(screenWidthPx * 1.4f, tween(180))
+                                        onSwipedRight()
+                                    } else if (dragX.value < -threshold) {
+                                        isDismissed = true
+                                        dragX.animateTo(-screenWidthPx * 1.4f, tween(180))
+                                        onSwipedLeft()
+                                    } else {
+                                        launch { dragX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy)) }
+                                        launch { dragY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy)) }
+                                    }
+                                }
+                            }
+                            break
+                        }
+
+                        val deltaX = change.position.x - change.previousPosition.x
+                        val deltaY = change.position.y - change.previousPosition.y
+                        totalDragX += deltaX
+                        totalDragY += deltaY
+
+                        if (!isDrag && (kotlin.math.hypot(totalDragX, totalDragY) > touchSlop)) {
+                            isDrag = true
+                        }
+
+                        if (isDrag && !isDismissed) {
                             change.consume()
                             scope.launch {
-                                dragX.snapTo(dragX.value + dragAmount.x)
-                                dragY.snapTo(dragY.value + dragAmount.y * 0.35f)
-                            }
-                        }
-                    },
-                    onDragEnd = {
-                        if (isDismissed) return@detectDragGestures
-                        scope.launch {
-                            if (dragX.value > threshold) {
-                                isDismissed = true
-                                dragX.animateTo(screenWidthPx * 1.4f, tween(180))
-                                onSwipedRight()
-                            } else if (dragX.value < -threshold) {
-                                isDismissed = true
-                                dragX.animateTo(-screenWidthPx * 1.4f, tween(180))
-                                onSwipedLeft()
-                            } else {
-                                launch { dragX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy)) }
-                                launch { dragY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy)) }
+                                dragX.snapTo(dragX.value + deltaX)
+                                dragY.snapTo(dragY.value + deltaY * 0.35f)
                             }
                         }
                     }
-                )
+                }
             }
     ) {
         Surface(
@@ -486,3 +514,125 @@ fun TinderActionButtons(
         }
     }
 }
+
+/**
+ * Fullscreen Zoomable Image Viewer (Apple Photos Style)
+ * Allows pinch-to-zoom, pan when zoomed, double tap to zoom in/out,
+ * and single tap to exit back to swipe mode.
+ */
+@Composable
+fun ZoomableImageViewer(
+    item: MediaItem,
+    onDismiss: () -> Unit
+) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val context = LocalContext.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (scale > 1.2f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            scale = 2.5f
+                        }
+                    },
+                    onTap = {
+                        onDismiss()
+                    }
+                )
+            }
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    val newScale = (scale * zoom).coerceIn(1f, 5f)
+                    scale = newScale
+                    if (scale > 1f) {
+                        val maxOffset = 600f * (scale - 1f)
+                        offset = Offset(
+                            x = (offset.x + pan.x).coerceIn(-maxOffset, maxOffset),
+                            y = (offset.y + pan.y).coerceIn(-maxOffset, maxOffset)
+                        )
+                    } else {
+                        offset = Offset.Zero
+                    }
+                }
+            }
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(item.uri)
+                .crossfade(true)
+                .build(),
+            contentDescription = item.name,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
+                    translationY = offset.y
+                }
+        )
+
+        // Top Apple Info Bar
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color(0xAA000000),
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x40FFFFFF)),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 44.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (item.formattedDateTime.isNotBlank()) {
+                    Text(
+                        text = item.formattedDateTime,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "•",
+                        color = Color(0xFF8E8E93),
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = item.formattedSize,
+                    color = Color(0xFF0A84FF),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Bottom Tap Hint
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color(0x88000000),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 36.dp)
+        ) {
+            Text(
+                text = "Pinch to zoom • Tap anywhere to return",
+                color = Color(0xCCFFFFFF),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+            )
+        }
+    }
+}
+
