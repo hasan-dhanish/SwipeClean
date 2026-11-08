@@ -1,6 +1,6 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2",
-  "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/releases/download/v1.2/SwipeClean.apk",
-  "changelog": "Tap-to-zoom inspection with pinch & pan, gesture-first deck, and floating quick undo!"
+  "versionCode": 4,
+  "versionName": "1.3",
+  "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/releases/download/v1.3/SwipeClean.apk",
+  "changelog": "Zero blank-frame loading with RAM preloader, fluid Apple spring animations, and tap-to-zoom!"
 }

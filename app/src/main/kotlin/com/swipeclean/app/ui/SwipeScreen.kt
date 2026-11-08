@@ -4,9 +4,20 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import coil.imageLoader
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -494,6 +505,7 @@ fun SwipingDeckScreen(
     onRequestTrash: () -> Unit,
     onRemoveFromTrash: (MediaItem) -> Unit
 ) {
+    val context = LocalContext.current
     var showTrashSheet by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
     var inspectingItem by remember { mutableStateOf<MediaItem?>(null) }
@@ -516,6 +528,33 @@ fun SwipingDeckScreen(
 
     val currentCard = state.remainingItems.firstOrNull()
     val nextCard = state.remainingItems.getOrNull(1)
+
+    // Preload next 2 upcoming images into RAM cache for zero blank frames
+    val imageLoader = remember { context.imageLoader }
+    LaunchedEffect(nextCard?.id) {
+        nextCard?.let { item ->
+            val request = ImageRequest.Builder(context)
+                .data(item.uri)
+                .size(1080, 1920)
+                .memoryCacheKey(item.uri.toString())
+                .diskCacheKey(item.uri.toString())
+                .crossfade(false)
+                .allowHardware(true)
+                .build()
+            imageLoader.enqueue(request)
+        }
+        state.remainingItems.getOrNull(2)?.let { item3 ->
+            val request = ImageRequest.Builder(context)
+                .data(item3.uri)
+                .size(1080, 1920)
+                .memoryCacheKey(item3.uri.toString())
+                .diskCacheKey(item3.uri.toString())
+                .crossfade(false)
+                .allowHardware(true)
+                .build()
+            imageLoader.enqueue(request)
+        }
+    }
 
     // Reset Confirmation Dialog
     if (showResetDialog) {
@@ -809,12 +848,27 @@ fun SwipingDeckScreen(
         }
     }
 
-    // Fullscreen Tap-to-Zoom Mode (Pinch to zoom in/out, pan, tap again to return)
-    inspectingItem?.let { item ->
-        ZoomableImageViewer(
-            item = item,
-            onDismiss = { inspectingItem = null }
+    // Fullscreen Tap-to-Zoom Mode with fluid Apple spring expansion & collapse
+    AnimatedVisibility(
+        visible = inspectingItem != null,
+        enter = fadeIn(tween(200)) + scaleIn(
+            initialScale = 0.90f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        ),
+        exit = fadeOut(tween(160)) + scaleOut(
+            targetScale = 0.90f,
+            animationSpec = tween(160, easing = FastOutLinearInEasing)
         )
+    ) {
+        inspectingItem?.let { item ->
+            ZoomableImageViewer(
+                item = item,
+                onDismiss = { inspectingItem = null }
+            )
+        }
     }
 
     if (showTrashSheet) {

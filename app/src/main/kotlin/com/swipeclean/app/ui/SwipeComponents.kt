@@ -1,6 +1,7 @@
 package com.swipeclean.app.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -156,7 +157,7 @@ fun SwipeCard(
     LaunchedEffect(triggerSwipeLeft) {
         if (triggerSwipeLeft && !isDismissed) {
             isDismissed = true
-            dragX.animateTo(-screenWidthPx * 1.4f, tween(180))
+            dragX.animateTo(-screenWidthPx * 1.5f, tween(240, easing = FastOutSlowInEasing))
             onSwipedLeft()
         }
     }
@@ -164,7 +165,7 @@ fun SwipeCard(
     LaunchedEffect(triggerSwipeRight) {
         if (triggerSwipeRight && !isDismissed) {
             isDismissed = true
-            dragX.animateTo(screenWidthPx * 1.4f, tween(180))
+            dragX.animateTo(screenWidthPx * 1.5f, tween(240, easing = FastOutSlowInEasing))
             onSwipedRight()
         }
     }
@@ -200,15 +201,15 @@ fun SwipeCard(
                                 scope.launch {
                                     if (dragX.value > threshold) {
                                         isDismissed = true
-                                        dragX.animateTo(screenWidthPx * 1.4f, tween(180))
+                                        dragX.animateTo(screenWidthPx * 1.5f, tween(240, easing = FastOutSlowInEasing))
                                         onSwipedRight()
                                     } else if (dragX.value < -threshold) {
                                         isDismissed = true
-                                        dragX.animateTo(-screenWidthPx * 1.4f, tween(180))
+                                        dragX.animateTo(-screenWidthPx * 1.5f, tween(240, easing = FastOutSlowInEasing))
                                         onSwipedLeft()
                                     } else {
-                                        launch { dragX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy)) }
-                                        launch { dragY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy)) }
+                                        launch { dragX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)) }
+                                        launch { dragY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)) }
                                     }
                                 }
                             }
@@ -248,7 +249,9 @@ fun SwipeCard(
                     model = ImageRequest.Builder(context)
                         .data(item.uri)
                         .size(1080, 1920)
-                        .crossfade(true)
+                        .memoryCacheKey(item.uri.toString())
+                        .diskCacheKey(item.uri.toString())
+                        .crossfade(false)
                         .allowHardware(true)
                         .build(),
                     contentDescription = item.name,
@@ -421,8 +424,10 @@ fun BackgroundCard(
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(item.uri)
-                .size(720, 1280)
-                .crossfade(true)
+                .size(1080, 1920)
+                .memoryCacheKey(item.uri.toString())
+                .diskCacheKey(item.uri.toString())
+                .crossfade(false)
                 .allowHardware(true)
                 .build(),
             contentDescription = null,
