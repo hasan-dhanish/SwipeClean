@@ -1,7 +1,6 @@
 {
-  "versionCode": 1,
-  "versionName": "1.0",
-  "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/releases/download/v1.0/SwipeClean.apk",
-  "changelog": "Initial release with Apple-style photo review, smooth swiping, and persistent trash selection."
+  "versionCode": 2,
+  "versionName": "1.1",
+  "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/releases/download/v1.1/SwipeClean.apk",
+  "changelog": "Apple Photos style albums, date & time displayed on photo cards, and OTA auto-updates!"
 }
-

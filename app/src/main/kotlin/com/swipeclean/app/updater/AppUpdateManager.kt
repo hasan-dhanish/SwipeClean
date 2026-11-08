@@ -44,14 +44,20 @@ object AppUpdateManager {
      */
     suspend fun checkForUpdate(): UpdateInfo? = withContext(Dispatchers.IO) {
         try {
-            // First attempt: check version.json directly from repository
+            // Check GitHub Releases API first (instant, no CDN caching)
+            val releaseApiUpdate = fetchGitHubReleaseApi()
+            if (releaseApiUpdate != null && releaseApiUpdate.isUpdateAvailable) {
+                return@withContext releaseApiUpdate
+            }
+
+            // Check version.json from repository
             val versionJsonUpdate = fetchVersionJson()
-            if (versionJsonUpdate != null) {
+            if (versionJsonUpdate != null && versionJsonUpdate.isUpdateAvailable) {
                 return@withContext versionJsonUpdate
             }
 
-            // Fallback attempt: check GitHub Releases API
-            return@withContext fetchGitHubReleaseApi()
+            // If neither has an update, return the latest info found
+            return@withContext releaseApiUpdate ?: versionJsonUpdate
         } catch (e: Exception) {
             e.printStackTrace()
             null
