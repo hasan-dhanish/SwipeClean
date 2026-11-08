@@ -63,6 +63,16 @@ class TrashStorage(context: Context) {
     }
 
     @Synchronized
+    fun getLastPromptedVersion(): String {
+        return prefs.getString("last_prompted_version", "") ?: ""
+    }
+
+    @Synchronized
+    fun setLastPromptedVersion(versionName: String) {
+        prefs.edit().putString("last_prompted_version", versionName).commit()
+    }
+
+    @Synchronized
     fun getKeptIds(): Set<Long> {
         return keptIds.toSet()
     }

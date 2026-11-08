@@ -54,6 +54,7 @@ fun SwipeCleanAppRoot(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val updateInfo by viewModel.updateInfo.collectAsState()
+    val showUpdateDialog by viewModel.showUpdateDialog.collectAsState()
     val downloadState by viewModel.downloadState.collectAsState()
     val context = LocalContext.current
 
@@ -135,10 +136,10 @@ fun SwipeCleanAppRoot(
                     onFolderClick = { folder -> viewModel.selectFolder(folder.name) },
                     onRefresh = {
                         viewModel.loadFolders()
-                        viewModel.checkForUpdates()
+                        viewModel.checkForUpdates(autoPrompt = false)
                     },
                     onTriggerUpdate = {
-                        updateInfo?.let { viewModel.startUpdate(context) }
+                        viewModel.openUpdateDialog()
                     }
                 )
             }
@@ -161,9 +162,9 @@ fun SwipeCleanAppRoot(
         }
 
         // Over-The-Air Update Dialogs
-        updateInfo?.let { info ->
+        if (showUpdateDialog && updateInfo != null) {
             UpdateAvailableDialog(
-                updateInfo = info,
+                updateInfo = updateInfo!!,
                 onConfirmUpdate = { viewModel.startUpdate(context) },
                 onDismiss = { viewModel.dismissUpdate() }
             )

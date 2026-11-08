@@ -51,24 +51,44 @@ class SwipeViewModel(
     private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
     val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
 
+    private val _showUpdateDialog = MutableStateFlow<Boolean>(false)
+    val showUpdateDialog: StateFlow<Boolean> = _showUpdateDialog.asStateFlow()
+
     private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
 
     init {
-        checkForUpdates()
+        checkForUpdates(autoPrompt = true)
     }
 
-    fun checkForUpdates() {
+    fun checkForUpdates(autoPrompt: Boolean = false) {
         viewModelScope.launch {
             val info = AppUpdateManager.checkForUpdate()
             if (info != null && info.isUpdateAvailable) {
                 _updateInfo.value = info
+                val lastPrompted = trashStorage.getLastPromptedVersion()
+                if (autoPrompt && lastPrompted != info.versionName) {
+                    _showUpdateDialog.value = true
+                } else if (!autoPrompt) {
+                    _showUpdateDialog.value = true
+                }
+            } else {
+                _updateInfo.value = null
+                _showUpdateDialog.value = false
             }
         }
     }
 
+    fun openUpdateDialog() {
+        _showUpdateDialog.value = true
+    }
+
     fun dismissUpdate() {
-        _updateInfo.value = null
+        _showUpdateDialog.value = false
+        val info = _updateInfo.value
+        if (info != null) {
+            trashStorage.setLastPromptedVersion(info.versionName)
+        }
     }
 
     fun startUpdate(context: Context) {
