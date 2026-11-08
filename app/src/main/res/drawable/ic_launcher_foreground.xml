@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Back Tilted Card (Subtle Glass) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="10">
+        <path
+            android:pathData="M38,32 h32 a8,8 0 0 1 8,8 v36 a8,8 0 0 1 -8,8 h-32 a8,8 0 0 1 -8,-8 v-36 a8,8 0 0 1 8,-8 z"
+            android:fillColor="#242236"
+            android:strokeColor="#3A3754"
+            android:strokeWidth="1.5" />
+    </group>
+
+    <!-- Front Tilted Card (Tinder Swipe) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="-8">
+        <!-- Card Fill & Drop Shadow -->
+        <path
+            android:pathData="M36,28 h32 a8,8 0 0 1 8,8 v38 a8,8 0 0 1 -8,8 h-32 a8,8 0 0 1 -8,-8 v-38 a8,8 0 0 1 8,-8 z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="30"
+                    android:startY="28"
+                    android:endX="74"
+                    android:endY="80"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#2A2440" />
+                    <item android:offset="1.0" android:color="#19152B" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Card Outline Gradient -->
+        <path
+            android:pathData="M36,28 h32 a8,8 0 0 1 8,8 v38 a8,8 0 0 1 -8,8 h-32 a8,8 0 0 1 -8,-8 v-38 a8,8 0 0 1 8,-8 z"
+            android:fillColor="#00000000"
+            android:strokeWidth="2">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:startX="30"
+                    android:startY="28"
+                    android:endX="74"
+                    android:endY="80"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#FF5252" />
+                    <item android:offset="0.5" android:color="#FF7A00" />
+                    <item android:offset="1.0" android:color="#FFB300" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Mountain / Landscape symbol on card -->
+        <path
+            android:pathData="M35,62 l9,-11 l7,8 l8,-12 l11,15 z"
+            android:fillColor="#4A426B" />
+
+        <!-- Sun circle on card -->
+        <path
+            android:pathData="M63,42 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+            android:fillColor="#FFD54F" />
+    </group>
+
+    <!-- Dynamic Swipe Flame / Wing Motion Trail (Overlapping) -->
+    <path
+        android:pathData="M44,66 C48,58 55,50 63,47 C65,46 66,48 65,50 C62,54 59,60 56,66 C53,72 48,74 44,72 C41,70 41,68 44,66 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="42"
+                android:startY="72"
+                android:endX="66"
+                android:endY="46"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF3B30" />
+                <item android:offset="0.6" android:color="#FF9500" />
+                <item android:offset="1.0" android:color="#FFCC00" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Sparkle Stars for "Clean" -->
+    <path
+        android:pathData="M75,27 L76.5,32 L81.5,33.5 L76.5,35 L75,40 L73.5,35 L68.5,33.5 L73.5,32 Z"
+        android:fillColor="#00E5FF" />
+
+    <path
+        android:pathData="M31,44 L32,47 L35,48 L32,49 L31,52 L30,49 L27,48 L30,47 Z"
+        android:fillColor="#69F0AE" />
+</vector>
