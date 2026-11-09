@@ -777,20 +777,13 @@ fun SwipingDeckScreen(
                     }
                 },
                 title = {
-                    Column {
-                        Text(
-                            text = state.folderName,
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = "${state.remainingItems.size} unreviewed • ${state.keptCount} kept",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF8E8E93)
-                        )
-                    }
+                    Text(
+                        text = state.folderName,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 },
                 actions = {
                     // Apple Sort Order Pill Button
@@ -1014,34 +1007,68 @@ fun SwipingDeckScreen(
                 }
             }
 
-            // Floating Quick Undo Button Alone (Minimalist & Gesture-First)
-            if (state.history.isNotEmpty() && !isBusy && currentCard != null) {
-                Surface(
-                    onClick = onUndo,
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color(0xDD1C1C1E),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
-                    shadowElevation = 8.dp,
+            // Bottom Area: Quick Undo pill & discreet progress counts
+            if (currentCard != null) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .padding(vertical = 14.dp)
-                        .height(44.dp)
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 12.dp)
                 ) {
+                    if (state.history.isNotEmpty() && !isBusy) {
+                        Surface(
+                            onClick = onUndo,
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0xDD1C1C1E),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
+                            shadowElevation = 8.dp,
+                            modifier = Modifier.height(42.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Undo,
+                                    contentDescription = "Quick Undo",
+                                    tint = Color(0xFFFF9F0A), // Apple Amber
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Undo",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    } else {
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+
+                    // Discreet bottom counts (Unreviewed & Kept)
                     Row(
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Undo,
-                            contentDescription = "Quick Undo",
-                            tint = Color(0xFFFF9F0A), // Apple Amber
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Undo",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
+                            text = "${state.remainingItems.size} unreviewed",
+                            color = Color(0xFF8E8E93),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "  •  ",
+                            color = Color(0xFF48484A),
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = "${state.keptCount} kept",
+                            color = Color(0xFF34C759),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
