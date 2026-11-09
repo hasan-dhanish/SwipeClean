@@ -2020,7 +2020,7 @@ fun RecycleBinFolderScreen(
                         ) {
                             Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Restore to Gallery", fontWeight = FontWeight.Bold)
+                            Text("Restore", fontWeight = FontWeight.Bold)
                         }
 
                         Button(
