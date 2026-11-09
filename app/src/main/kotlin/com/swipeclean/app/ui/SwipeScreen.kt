@@ -801,8 +801,7 @@ fun SwipingDeckScreen(
         } else 0f
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
+    Scaffold(
         containerColor = Color(0xFF000000),
         topBar = {
             TopAppBar(
@@ -907,6 +906,62 @@ fun SwipingDeckScreen(
                             onDragOffset = { offset ->
                                 activeDragOffset = offset
                             }
+                        )
+                    }
+
+                    // Left Edge Red Light Glow (Bounded strictly to Image Card height)
+                    if (leftGlowAlpha > 0.005f) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .fillMaxHeight()
+                                .width(90.dp)
+                                .clip(RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.70f),
+                                            Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.20f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .fillMaxHeight()
+                                .width(3.5.dp)
+                                .clip(RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp))
+                                .background(Color(0xFFFF3B30).copy(alpha = leftGlowAlpha))
+                        )
+                    }
+
+                    // Right Edge Green Light Glow (Bounded strictly to Image Card height)
+                    if (rightGlowAlpha > 0.005f) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .width(90.dp)
+                                .clip(RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.20f),
+                                            Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.70f)
+                                        )
+                                    )
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .width(3.5.dp)
+                                .clip(RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp))
+                                .background(Color(0xFF34C759).copy(alpha = rightGlowAlpha))
                         )
                     }
                 } else {
@@ -1112,61 +1167,6 @@ fun SwipingDeckScreen(
             } else {
                 Spacer(modifier = Modifier.height(20.dp))
             }
-        }
-    }
-
-        // Left Edge Red Light Glow (Dynamic on Swipe Left)
-        if (leftGlowAlpha > 0.005f) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .fillMaxHeight()
-                    .width(140.dp)
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.75f),
-                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.25f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-            // Crisp edge neon line along the left screen rim
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .fillMaxHeight()
-                    .width(3.5.dp)
-                    .background(Color(0xFFFF3B30).copy(alpha = leftGlowAlpha))
-            )
-        }
-
-        // Right Edge Green Light Glow (Dynamic on Swipe Right)
-        if (rightGlowAlpha > 0.005f) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .width(140.dp)
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.25f),
-                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.75f)
-                            )
-                        )
-                    )
-            )
-            // Crisp edge neon line along the right screen rim
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .width(3.5.dp)
-                    .background(Color(0xFF34C759).copy(alpha = rightGlowAlpha))
-            )
         }
     }
 
