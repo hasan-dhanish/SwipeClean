@@ -2,6 +2,7 @@ package com.swipeclean.app.ui
 
 import android.Manifest
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +22,8 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import coil.imageLoader
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -740,6 +743,90 @@ fun AppleFolderGridScreen(
     }
 }
 
+@Composable
+private fun RealisticActionButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color,
+    gradientColors: List<Color>,
+    borderColor: Color,
+    glowColor: Color,
+    enabled: Boolean = true,
+    size: androidx.compose.ui.unit.Dp = 74.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 36.dp,
+    contentDescription: String
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && enabled) 0.88f else 1.0f,
+        animationSpec = spring(
+            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = Spring.DampingRatioMediumBouncy
+        ),
+        label = "ButtonScale"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = if (enabled) 1f else 0.45f
+            }
+            .shadow(
+                elevation = if (enabled) 12.dp else 0.dp,
+                shape = CircleShape,
+                spotColor = glowColor,
+                ambientColor = glowColor.copy(alpha = 0.45f)
+            )
+            .clip(CircleShape)
+            .background(Brush.verticalGradient(gradientColors))
+            .border(
+                width = 2.dp,
+                brush = Brush.verticalGradient(
+                    listOf(
+                        borderColor.copy(alpha = 0.95f),
+                        borderColor.copy(alpha = 0.45f)
+                    )
+                ),
+                shape = CircleShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        // Realistic top convex 3D light reflection
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(3.dp)
+                .clip(CircleShape)
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.32f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = iconColor,
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SwipingDeckScreen(
@@ -912,7 +999,13 @@ fun SwipingDeckScreen(
                 actions = {
                     // "My Thumb is tired" quick toggle
                     IconButton(
-                        onClick = { isThumbTired = !isThumbTired },
+                        onClick = {
+                            val willActivate = !isThumbTired
+                            isThumbTired = willActivate
+                            if (willActivate) {
+                                Toast.makeText(context, "Entering Tired Thumb Mode", Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         modifier = if (isThumbTired) {
                             Modifier
                                 .background(Color(0x330A84FF), CircleShape)
@@ -1127,7 +1220,7 @@ fun SwipingDeckScreen(
                     val hasTrash = state.trashedItems.isNotEmpty()
 
                     if (isThumbTired) {
-                        // "My Thumb is tired" Rapid-Tap Mode
+                        // "My Thumb is tired" Rapid-Tap Mode (Tactile Realistic Buttons)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1135,65 +1228,59 @@ fun SwipingDeckScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // ❌ Discard / Trash Button
-                            Surface(
+                            // Realistic ❌ Discard / Trash Button
+                            RealisticActionButton(
                                 onClick = {
                                     if (!isBusy) {
                                         isBusy = true
                                         triggerLeft = true
                                     }
                                 },
-                                shape = CircleShape,
-                                color = Color(0xFF2E1518),
-                                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFFF3B30)),
-                                shadowElevation = 10.dp,
-                                modifier = Modifier.size(70.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("❌", fontSize = 28.sp)
-                                }
-                            }
+                                icon = Icons.Default.Close,
+                                iconColor = Color(0xFFFF453A),
+                                gradientColors = listOf(Color(0xFF381216), Color(0xFF1C080A)),
+                                borderColor = Color(0xFFFF3B30),
+                                glowColor = Color(0xFFFF3B30),
+                                size = 72.dp,
+                                iconSize = 34.dp,
+                                contentDescription = "Discard"
+                            )
 
-                            // ↩ Undo Button
-                            Surface(
+                            // Realistic ↩ Undo Button
+                            RealisticActionButton(
                                 onClick = onUndo,
                                 enabled = canUndo,
-                                shape = CircleShape,
-                                color = if (canUndo) Color(0xFF292416) else Color(0xFF1C1C24),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.5.dp,
-                                    if (canUndo) Color(0xFFFFB300).copy(alpha = 0.8f) else Color(0xFF333342)
-                                ),
-                                modifier = Modifier.size(48.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Undo,
-                                        contentDescription = "Undo",
-                                        tint = if (canUndo) Color(0xFFFFB300) else Color(0xFF555566),
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
+                                icon = Icons.AutoMirrored.Filled.Undo,
+                                iconColor = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF555562),
+                                gradientColors = if (canUndo) {
+                                    listOf(Color(0xFF332612), Color(0xFF1C150A))
+                                } else {
+                                    listOf(Color(0xFF1C1C20), Color(0xFF121215))
+                                },
+                                borderColor = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF2C2C32),
+                                glowColor = if (canUndo) Color(0xFFFF9F0A) else Color.Transparent,
+                                size = 48.dp,
+                                iconSize = 22.dp,
+                                contentDescription = "Undo"
+                            )
 
-                            // ✅ Keep Button
-                            Surface(
+                            // Realistic ✅ Keep / Tick Button
+                            RealisticActionButton(
                                 onClick = {
                                     if (!isBusy) {
                                         isBusy = true
                                         triggerRight = true
                                     }
                                 },
-                                shape = CircleShape,
-                                color = Color(0xFF14291A),
-                                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF34C759)),
-                                shadowElevation = 10.dp,
-                                modifier = Modifier.size(70.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("✅", fontSize = 28.sp)
-                                }
-                            }
+                                icon = Icons.Default.Check,
+                                iconColor = Color(0xFF30D158),
+                                gradientColors = listOf(Color(0xFF13381E), Color(0xFF091F10)),
+                                borderColor = Color(0xFF34C759),
+                                glowColor = Color(0xFF34C759),
+                                size = 72.dp,
+                                iconSize = 34.dp,
+                                contentDescription = "Keep"
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -1213,10 +1300,15 @@ fun SwipingDeckScreen(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("✋", fontSize = 12.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = null,
+                                        tint = Color(0xFF8E8E93),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Back to swiping",
+                                        text = "Back to Swiping",
                                         color = Color(0xFF8E8E93),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
@@ -1254,7 +1346,7 @@ fun SwipingDeckScreen(
                             }
                         }
                     } else {
-                        // Standard Mode: Undo + Trash
+                        // Standard Mode: Clean Undo + Trash (Only yawning emoji on top activates Tired mode)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1327,32 +1419,6 @@ fun SwipingDeckScreen(
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // "My Thumb is tired" Button
-                        Surface(
-                            onClick = { isThumbTired = true },
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFF1C1C1E),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x330A84FF)),
-                            shadowElevation = 2.dp,
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("🥱", fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "My Thumb is tired",
-                                    color = Color(0xFF0A84FF),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
                             }
                         }
                     }
