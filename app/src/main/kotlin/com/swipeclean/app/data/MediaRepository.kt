@@ -5,6 +5,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -191,10 +192,80 @@ class MediaRepository(private val context: Context) {
         items
     }
 
-    fun createTrashRequest(uris: List<Uri>): PendingIntent? {
+    suspend fun getTrashedMedia(): List<MediaItem> = withContext(Dispatchers.IO) {
+        val items = mutableListOf<MediaItem>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+                MediaStore.Images.Media.DATA
+            )
+            val bundle = Bundle().apply {
+                putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+                putString(
+                    android.content.ContentResolver.QUERY_ARG_SQL_SORT_ORDER,
+                    "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+                )
+            }
+            try {
+                context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    projection,
+                    bundle,
+                    null
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndex(MediaStore.Images.Media._ID)
+                    val nameCol = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                    val sizeCol = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
+                    val dateTakenCol = cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)
+                    val dateAddedCol = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                    val bucketCol = cursor.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+                    val dataCol = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+
+                    while (cursor.moveToNext()) {
+                        val id = if (idCol >= 0) cursor.getLong(idCol) else continue
+                        val name = if (nameCol >= 0) cursor.getString(nameCol) ?: "Image" else "Image"
+                        val size = if (sizeCol >= 0) cursor.getLong(sizeCol) else 0L
+                        val rawDateTaken = if (dateTakenCol >= 0) cursor.getLong(dateTakenCol) else 0L
+                        val dateAdded = if (dateAddedCol >= 0) cursor.getLong(dateAddedCol) else 0L
+                        val dateTaken = if (rawDateTaken > 0L) rawDateTaken else (dateAdded * 1000L)
+                        val bucket = if (bucketCol >= 0) cursor.getString(bucketCol) ?: "Gallery" else "Gallery"
+                        val path = if (dataCol >= 0) cursor.getString(dataCol) ?: "" else ""
+                        val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                        items.add(MediaItem(id, uri, name, size, dateTaken, bucket, path))
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        items
+    }
+
+    fun createTrashRequest(uris: List<Uri>): PendingIntent? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && uris.isNotEmpty()) {
             try {
                 return MediaStore.createTrashRequest(context.contentResolver, uris, true)
+            } catch (_: Exception) {}
+        }
+        return null
+    }
+
+    fun createRestoreRequest(uris: List<Uri>): PendingIntent? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && uris.isNotEmpty()) {
+            try {
+                return MediaStore.createTrashRequest(context.contentResolver, uris, false)
+            } catch (_: Exception) {}
+        }
+        return null
+    }
+
+    fun createPermanentDeleteRequest(uris: List<Uri>): PendingIntent? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && uris.isNotEmpty()) {
+            try {
+                return MediaStore.createDeleteRequest(context.contentResolver, uris)
             } catch (_: Exception) {}
         }
         return null

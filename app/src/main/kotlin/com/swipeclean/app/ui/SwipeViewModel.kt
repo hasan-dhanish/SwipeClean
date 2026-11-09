@@ -30,7 +30,10 @@ sealed interface UiState {
     data class FolderList(
         val folders: List<FolderItem>,
         val totalPendingTrashCount: Int = 0,
-        val pendingTrashItems: List<MediaItem> = emptyList()
+        val pendingTrashItems: List<MediaItem> = emptyList(),
+        val systemTrashCount: Int = 0,
+        val systemTrashSizeBytes: Long = 0L,
+        val systemTrashThumbnailUri: android.net.Uri? = null
     ) : UiState
     data class Swiping(
         val folderName: String,
@@ -42,6 +45,13 @@ sealed interface UiState {
         val history: List<SwipeAction>,
         val isAllReviewedInitially: Boolean = false,
         val currentSort: PhotoSort = PhotoSort.DATE_DESC
+    ) : UiState
+    data class RecycleBin(
+        val items: List<MediaItem>,
+        val systemTrashedIds: Set<Long> = emptySet(),
+        val pendingTrashedIds: Set<Long> = emptySet(),
+        val selectedIds: Set<Long> = emptySet(),
+        val isSelecting: Boolean = false
     ) : UiState
 }
 
@@ -127,10 +137,15 @@ class SwipeViewModel(
             val folders = repository.getFolders()
             val pendingTrashIds = trashStorage.getTrashedIds()
             val pendingTrashItems = repository.getMediaByIds(pendingTrashIds.toList())
+            val systemTrashed = repository.getTrashedMedia()
+
             _uiState.value = UiState.FolderList(
                 folders = folders,
-                totalPendingTrashCount = pendingTrashIds.size,
-                pendingTrashItems = pendingTrashItems
+                totalPendingTrashCount = pendingTrashItems.size,
+                pendingTrashItems = pendingTrashItems,
+                systemTrashCount = systemTrashed.size,
+                systemTrashSizeBytes = systemTrashed.sumOf { it.size },
+                systemTrashThumbnailUri = systemTrashed.firstOrNull()?.uri ?: pendingTrashItems.firstOrNull()?.uri
             )
         }
     }
@@ -290,6 +305,126 @@ class SwipeViewModel(
         }
     }
 
+    private var lastRequestedRestoreIds = listOf<Long>()
+    private var lastRequestedPermanentDeleteIds = listOf<Long>()
+
+    fun openRecycleBin() {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            val pending = repository.getMediaByIds(trashStorage.getTrashedIds().toList())
+            val system = repository.getTrashedMedia()
+            val pendingIds = pending.map { it.id }.toSet()
+            val systemIds = system.map { it.id }.toSet()
+            val allItems = (pending + system).distinctBy { it.id }
+
+            _uiState.value = UiState.RecycleBin(
+                items = allItems,
+                systemTrashedIds = systemIds,
+                pendingTrashedIds = pendingIds,
+                selectedIds = emptySet(),
+                isSelecting = false
+            )
+        }
+    }
+
+    fun toggleRecycleBinSelection(id: Long) {
+        val state = _uiState.value as? UiState.RecycleBin ?: return
+        val newSelected = if (state.selectedIds.contains(id)) {
+            state.selectedIds - id
+        } else {
+            state.selectedIds + id
+        }
+        _uiState.value = state.copy(
+            selectedIds = newSelected,
+            isSelecting = newSelected.isNotEmpty()
+        )
+    }
+
+    fun selectAllRecycleBin() {
+        val state = _uiState.value as? UiState.RecycleBin ?: return
+        _uiState.value = state.copy(
+            selectedIds = state.items.map { it.id }.toSet(),
+            isSelecting = true
+        )
+    }
+
+    fun clearRecycleBinSelection() {
+        val state = _uiState.value as? UiState.RecycleBin ?: return
+        _uiState.value = state.copy(
+            selectedIds = emptySet(),
+            isSelecting = false
+        )
+    }
+
+    fun restoreItems(
+        targetIds: List<Long>,
+        onIntentReady: (IntentSenderRequest) -> Unit,
+        onDirectSuccess: () -> Unit
+    ) {
+        val state = _uiState.value as? UiState.RecycleBin ?: return
+        val itemsToRestore = state.items.filter { targetIds.contains(it.id) }
+        if (itemsToRestore.isEmpty()) return
+
+        val pendingToRestore = itemsToRestore.filter { state.pendingTrashedIds.contains(it.id) }
+        val systemToRestore = itemsToRestore.filter { state.systemTrashedIds.contains(it.id) }
+
+        // Pending items can be restored instantly without system dialog
+        if (pendingToRestore.isNotEmpty()) {
+            trashStorage.removeTrashedIds(pendingToRestore.map { it.id })
+        }
+
+        if (systemToRestore.isNotEmpty()) {
+            lastRequestedRestoreIds = systemToRestore.map { it.id }
+            val pendingIntent = repository.createRestoreRequest(systemToRestore.map { it.uri })
+            if (pendingIntent != null) {
+                val request = IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                onIntentReady(request)
+                return
+            }
+        }
+
+        openRecycleBin()
+        onDirectSuccess()
+    }
+
+    fun onRestoreSuccess() {
+        lastRequestedRestoreIds = emptyList()
+        openRecycleBin()
+    }
+
+    fun permanentlyDeleteItems(
+        targetIds: List<Long>,
+        onIntentReady: (IntentSenderRequest) -> Unit
+    ) {
+        val state = _uiState.value as? UiState.RecycleBin ?: return
+        val itemsToDelete = state.items.filter { targetIds.contains(it.id) }
+        if (itemsToDelete.isEmpty()) return
+
+        val systemToDelete = itemsToDelete.filter { state.systemTrashedIds.contains(it.id) }
+        val pendingToDelete = itemsToDelete.filter { state.pendingTrashedIds.contains(it.id) }
+
+        if (pendingToDelete.isNotEmpty()) {
+            trashStorage.removeTrashedIds(pendingToDelete.map { it.id })
+        }
+
+        if (systemToDelete.isNotEmpty()) {
+            lastRequestedPermanentDeleteIds = systemToDelete.map { it.id }
+            val pendingIntent = repository.createPermanentDeleteRequest(systemToDelete.map { it.uri })
+            if (pendingIntent != null) {
+                val request = IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                onIntentReady(request)
+                return
+            }
+        }
+
+        openRecycleBin()
+    }
+
+    fun onPermanentDeleteSuccess() {
+        lastRequestedPermanentDeleteIds = emptyList()
+        openRecycleBin()
+    }
+
     fun requestMoveTrash(onIntentReady: (IntentSenderRequest) -> Unit) {
         val itemsToTrash = when (val state = _uiState.value) {
             is UiState.FolderList -> state.pendingTrashItems
@@ -304,11 +439,6 @@ class SwipeViewModel(
         if (pendingIntent != null) {
             val request = IntentSenderRequest.Builder(pendingIntent.intentSender).build()
             onIntentReady(request)
-        } else {
-            viewModelScope.launch {
-                repository.deleteDirect(uris)
-                onTrashSuccess()
-            }
         }
     }
 
