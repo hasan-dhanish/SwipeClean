@@ -67,6 +67,18 @@ class SwipeViewModel(
     private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
 
+    private val _showTutorial = MutableStateFlow<Boolean>(!trashStorage.hasCompletedTutorial())
+    val showTutorial: StateFlow<Boolean> = _showTutorial.asStateFlow()
+
+    fun openTutorial() {
+        _showTutorial.value = true
+    }
+
+    fun dismissTutorial() {
+        _showTutorial.value = false
+        trashStorage.setTutorialCompleted(true)
+    }
+
     init {
         checkForUpdates(autoPrompt = true)
     }

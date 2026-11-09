@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
@@ -73,6 +74,7 @@ fun SwipeCleanAppRoot(
     val updateInfo by viewModel.updateInfo.collectAsState()
     val showUpdateDialog by viewModel.showUpdateDialog.collectAsState()
     val downloadState by viewModel.downloadState.collectAsState()
+    val showTutorial by viewModel.showTutorial.collectAsState()
     val context = LocalContext.current
 
     val trashLauncher = rememberLauncherForActivityResult(
@@ -165,6 +167,9 @@ fun SwipeCleanAppRoot(
                     },
                     onRemoveFromTrash = { item ->
                         viewModel.removeFromTrash(item)
+                    },
+                    onOpenTutorial = {
+                        viewModel.openTutorial()
                     }
                 )
             }
@@ -200,6 +205,13 @@ fun SwipeCleanAppRoot(
             DownloadProgressDialog(
                 state = dState,
                 versionName = updateInfo?.versionName ?: "Update"
+            )
+        }
+
+        // First Launch Interactive Tutorial & Help Dialog
+        if (showTutorial) {
+            InteractiveTutorialDialog(
+                onDismiss = { viewModel.dismissTutorial() }
             )
         }
     }
@@ -287,7 +299,8 @@ fun AppleFolderGridScreen(
     onRefresh: () -> Unit,
     onTriggerUpdate: () -> Unit = {},
     onRequestTrash: () -> Unit = {},
-    onRemoveFromTrash: (MediaItem) -> Unit = {}
+    onRemoveFromTrash: (MediaItem) -> Unit = {},
+    onOpenTutorial: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val screenshotFolder = folders.firstOrNull { it.name.contains("Screenshot", ignoreCase = true) }
@@ -377,6 +390,25 @@ fun AppleFolderGridScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                        }
+                    }
+
+                    // Help & Interactive Tutorial Button
+                    Surface(
+                        onClick = onOpenTutorial,
+                        shape = CircleShape,
+                        color = Color(0xFF1C1C1E),
+                        modifier = Modifier
+                            .padding(end = 10.dp)
+                            .size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.HelpOutline,
+                                contentDescription = "Interactive Tutorial",
+                                tint = Color(0xFF0A84FF),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
