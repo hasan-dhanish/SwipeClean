@@ -111,14 +111,4 @@ class TrashStorage(context: Context) {
         keptIds.clear()
         saveToDisk()
     }
-
-    @Synchronized
-    fun hasCompletedTutorial(): Boolean {
-        return prefs.getBoolean("has_completed_live_walkthrough_v3", false)
-    }
-
-    @Synchronized
-    fun setTutorialCompleted(completed: Boolean = true) {
-        prefs.edit().putBoolean("has_completed_live_walkthrough_v3", completed).commit()
-    }
 }

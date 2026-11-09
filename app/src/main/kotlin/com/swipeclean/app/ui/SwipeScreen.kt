@@ -34,7 +34,6 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
@@ -74,7 +73,6 @@ fun SwipeCleanAppRoot(
     val updateInfo by viewModel.updateInfo.collectAsState()
     val showUpdateDialog by viewModel.showUpdateDialog.collectAsState()
     val downloadState by viewModel.downloadState.collectAsState()
-    val tutorialStep by viewModel.tutorialStep.collectAsState()
     val context = LocalContext.current
 
     val trashLauncher = rememberLauncherForActivityResult(
@@ -167,22 +165,12 @@ fun SwipeCleanAppRoot(
                     },
                     onRemoveFromTrash = { item ->
                         viewModel.removeFromTrash(item)
-                    },
-                    tutorialStep = tutorialStep,
-                    onOpenTutorial = {
-                        viewModel.startLiveTutorial()
-                    },
-                    onSkipTutorial = {
-                        viewModel.skipTutorial()
                     }
                 )
             }
             is UiState.Swiping -> {
                 SwipingDeckScreen(
                     state = state,
-                    tutorialStep = tutorialStep,
-                    onAdvanceTutorial = { step -> viewModel.advanceTutorialStep(step) },
-                    onSkipTutorial = { viewModel.skipTutorial() },
                     onSwipeLeft = { viewModel.swipeLeft() },
                     onSwipeRight = { viewModel.swipeRight() },
                     onUndo = { viewModel.undo() },
@@ -299,16 +287,11 @@ fun AppleFolderGridScreen(
     onRefresh: () -> Unit,
     onTriggerUpdate: () -> Unit = {},
     onRequestTrash: () -> Unit = {},
-    onRemoveFromTrash: (MediaItem) -> Unit = {},
-    tutorialStep: LiveTutorialStep = LiveTutorialStep.IDLE,
-    onOpenTutorial: () -> Unit = {},
-    onSkipTutorial: () -> Unit = {}
+    onRemoveFromTrash: (MediaItem) -> Unit = {}
 ) {
     val context = LocalContext.current
     val screenshotFolder = folders.firstOrNull { it.name.contains("Screenshot", ignoreCase = true) }
     var showPendingTrashSheet by remember { mutableStateOf(false) }
-    val isFolderHighlight = tutorialStep == LiveTutorialStep.HIGHLIGHT_FOLDER
-    val pulseAlpha = rememberPulsingAlpha()
 
     if (showPendingTrashSheet) {
         BackHandler {
@@ -397,25 +380,6 @@ fun AppleFolderGridScreen(
                         }
                     }
 
-                    // Help & Interactive Tutorial Button
-                    Surface(
-                        onClick = onOpenTutorial,
-                        shape = CircleShape,
-                        color = Color(0xFF1C1C1E),
-                        modifier = Modifier
-                            .padding(end = 10.dp)
-                            .size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.HelpOutline,
-                                contentDescription = "Interactive Tutorial",
-                                tint = Color(0xFF0A84FF),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
                     Surface(
                         onClick = onRefresh,
                         shape = CircleShape,
@@ -484,18 +448,6 @@ fun AppleFolderGridScreen(
                 }
             }
 
-            // Step 1: Live Interactive Tutorial Coachmark
-            if (isFolderHighlight) {
-                item(span = { GridItemSpan(2) }) {
-                    LivelyTutorialBubble(
-                        title = "👉 Tap to Open an Album",
-                        message = "Tap the highlighted album below to start cleaning. We'll guide you through the gestures!",
-                        accentColor = Color(0xFF0A84FF),
-                        onSkip = onSkipTutorial
-                    )
-                }
-            }
-
             // Apple "Featured / Spotlight" Card for Screenshots (21 GB)
             if (screenshotFolder != null) {
                 item(span = { GridItemSpan(2) }) {
@@ -503,11 +455,7 @@ fun AppleFolderGridScreen(
                         onClick = { onFolderClick(screenshotFolder) },
                         shape = RoundedCornerShape(22.dp),
                         color = Color(0xFF1C1C1E),
-                        border = androidx.compose.foundation.BorderStroke(
-                            if (isFolderHighlight) 2.5.dp else 0.5.dp,
-                            if (isFolderHighlight) Color(0xFF0A84FF).copy(alpha = pulseAlpha) else Color(0xFF38383A)
-                        ),
-                        shadowElevation = if (isFolderHighlight) 14.dp else 0.dp,
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF38383A)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(170.dp)
@@ -615,11 +563,9 @@ fun AppleFolderGridScreen(
 
             // 2-Column Apple Square Album Tiles
             items(folders, key = { it.name }) { folder ->
-                val isTarget = isFolderHighlight && screenshotFolder == null && folder == folders.firstOrNull()
                 AppleAlbumTile(
                     folder = folder,
-                    onClick = { onFolderClick(folder) },
-                    modifier = if (isTarget) Modifier.border(2.5.dp, Color(0xFF0A84FF).copy(alpha = pulseAlpha), RoundedCornerShape(18.dp)) else Modifier
+                    onClick = { onFolderClick(folder) }
                 )
             }
 
@@ -730,9 +676,6 @@ fun AppleFolderGridScreen(
 @Composable
 fun SwipingDeckScreen(
     state: UiState.Swiping,
-    tutorialStep: LiveTutorialStep = LiveTutorialStep.IDLE,
-    onAdvanceTutorial: (LiveTutorialStep) -> Unit = {},
-    onSkipTutorial: () -> Unit = {},
     onSwipeLeft: () -> Unit,
     onSwipeRight: () -> Unit,
     onUndo: () -> Unit,
@@ -747,7 +690,6 @@ fun SwipingDeckScreen(
     var showResetDialog by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
     var inspectingItem by remember { mutableStateOf<MediaItem?>(null) }
-    val pulseAlpha = rememberPulsingAlpha()
 
     var triggerLeft by remember { mutableStateOf(false) }
     var triggerRight by remember { mutableStateOf(false) }
@@ -863,16 +805,8 @@ fun SwipingDeckScreen(
                     )
                 },
                 actions = {
-                    val isSortHighlight = tutorialStep == LiveTutorialStep.TOUR_SORT
-                    val isRestartHighlight = tutorialStep == LiveTutorialStep.TOUR_RESTART
-
                     // Sort Button (Just the Icon)
-                    IconButton(
-                        onClick = { showSortSheet = true },
-                        modifier = if (isSortHighlight) {
-                            Modifier.border(2.dp, Color(0xFF0A84FF).copy(alpha = pulseAlpha), CircleShape)
-                        } else Modifier
-                    ) {
+                    IconButton(onClick = { showSortSheet = true }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Sort,
                             contentDescription = "Sort",
@@ -882,12 +816,7 @@ fun SwipingDeckScreen(
                     }
 
                     // Restart Button (Just the Icon)
-                    IconButton(
-                        onClick = { showResetDialog = true },
-                        modifier = if (isRestartHighlight) {
-                            Modifier.border(2.dp, Color(0xFF0A84FF).copy(alpha = pulseAlpha), CircleShape)
-                        } else Modifier
-                    ) {
+                    IconButton(onClick = { showResetDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.RestartAlt,
                             contentDescription = "Start Over",
@@ -953,11 +882,6 @@ fun SwipingDeckScreen(
                             triggerSwipeRight = triggerRight,
                             onTap = {
                                 inspectingItem = currentCard
-                            },
-                            wobbleDirection = when (tutorialStep) {
-                                LiveTutorialStep.SWIPE_LEFT_WOBBLE -> -1
-                                LiveTutorialStep.SWIPE_RIGHT_WOBBLE -> 1
-                                else -> 0
                             }
                         )
                     }
@@ -1059,8 +983,6 @@ fun SwipingDeckScreen(
                 ) {
                     val canUndo = state.history.isNotEmpty() && !isBusy
                     val hasTrash = state.trashedItems.isNotEmpty()
-                    val isUndoHighlight = tutorialStep == LiveTutorialStep.HIGHLIGHT_UNDO
-                    val isTrashHighlight = tutorialStep == LiveTutorialStep.TOUR_TRASH
 
                     Row(
                         modifier = Modifier
@@ -1076,11 +998,10 @@ fun SwipingDeckScreen(
                             shape = RoundedCornerShape(24.dp),
                             color = if (canUndo) Color(0xDD1C1C1E) else Color(0x5516161A),
                             border = androidx.compose.foundation.BorderStroke(
-                                if (isUndoHighlight) 2.5.dp else 1.dp,
-                                if (isUndoHighlight) Color(0xFFFF9F0A).copy(alpha = pulseAlpha)
-                                else if (canUndo) Color(0x33FFFFFF) else Color(0x18FFFFFF)
+                                1.dp,
+                                if (canUndo) Color(0x33FFFFFF) else Color(0x18FFFFFF)
                             ),
-                            shadowElevation = if (isUndoHighlight) 14.dp else if (canUndo) 6.dp else 0.dp,
+                            shadowElevation = if (canUndo) 6.dp else 0.dp,
                             modifier = Modifier.height(42.dp)
                         ) {
                             Row(
@@ -1111,11 +1032,10 @@ fun SwipingDeckScreen(
                             shape = RoundedCornerShape(24.dp),
                             color = if (hasTrash) Color(0xFF2E1518) else Color(0x5516161A),
                             border = androidx.compose.foundation.BorderStroke(
-                                if (isTrashHighlight) 2.5.dp else 1.dp,
-                                if (isTrashHighlight) Color(0xFFFF3B30).copy(alpha = pulseAlpha)
-                                else if (hasTrash) Color(0xFFFF3B30).copy(alpha = 0.5f) else Color(0x18FFFFFF)
+                                1.dp,
+                                if (hasTrash) Color(0xFFFF3B30).copy(alpha = 0.5f) else Color(0x18FFFFFF)
                             ),
-                            shadowElevation = if (isTrashHighlight) 14.dp else if (hasTrash) 6.dp else 0.dp,
+                            shadowElevation = if (hasTrash) 6.dp else 0.dp,
                             modifier = Modifier.height(42.dp)
                         ) {
                             Row(
@@ -1169,107 +1089,6 @@ fun SwipingDeckScreen(
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
-    }
-
-    // Lively In-Deck Interactive Coachmark Overlays
-    when (tutorialStep) {
-        LiveTutorialStep.SWIPE_LEFT_WOBBLE -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 120.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                LivelyTutorialBubble(
-                    title = "👈 Swipe Left to Trash",
-                    message = "Notice the photo tilting left? Swipe it left to move unwanted photos safely to your 30-day Recycle Bin!",
-                    accentColor = Color(0xFFFF453A),
-                    onSkip = onSkipTutorial
-                )
-            }
-        }
-        LiveTutorialStep.HIGHLIGHT_UNDO -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 85.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                LivelyTutorialBubble(
-                    title = "😅 Oops, Pushed to Trash by Mistake?",
-                    message = "Don't worry! Tap the highlighted Undo button right below to bring the photo straight back into your deck.",
-                    accentColor = Color(0xFFFF9F0A),
-                    onSkip = onSkipTutorial
-                )
-            }
-        }
-        LiveTutorialStep.SWIPE_RIGHT_WOBBLE -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 120.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                LivelyTutorialBubble(
-                    title = "👉 Swipe Right to Keep ✨",
-                    message = "Now watch the photo tilt right! Swipe it right to keep your favorite memories safe in your gallery.",
-                    accentColor = Color(0xFF34C759),
-                    onSkip = onSkipTutorial
-                )
-            }
-        }
-        LiveTutorialStep.TOUR_TRASH -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 85.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                LivelyTutorialBubble(
-                    title = "🗑️ Your Pending Recycle Bin",
-                    message = "All your trashed photos stay here safely. Tap Trash anytime to review or restore photos before sending to the 30-day Bin.",
-                    accentColor = Color(0xFFFF453A),
-                    actionText = "Next ➜",
-                    onAction = { onAdvanceTutorial(LiveTutorialStep.TOUR_SORT) },
-                    onSkip = onSkipTutorial
-                )
-            }
-        }
-        LiveTutorialStep.TOUR_SORT -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 70.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                LivelyTutorialBubble(
-                    title = "⇅ Smart Sorting",
-                    message = "Tap the highlighted Sort icon up top to order photos by 'Largest First' and free up gigabytes of storage fast!",
-                    accentColor = Color(0xFF0A84FF),
-                    actionText = "Next ➜",
-                    onAction = { onAdvanceTutorial(LiveTutorialStep.TOUR_RESTART) },
-                    onSkip = onSkipTutorial
-                )
-            }
-        }
-        LiveTutorialStep.TOUR_RESTART -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 70.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                LivelyTutorialBubble(
-                    title = "⟲ Start Over Anytime",
-                    message = "Want to re-swipe or start over fresh? Tap the highlighted restart icon at the top right anytime.",
-                    accentColor = Color(0xFF0A84FF),
-                    actionText = "🚀 Got It, Let's Clean!",
-                    onAction = { onAdvanceTutorial(LiveTutorialStep.IDLE) },
-                    onSkip = onSkipTutorial
-                )
-            }
-        }
-        else -> Unit
     }
 
     // Fullscreen Tap-to-Zoom Mode with fluid Apple spring expansion & collapse
