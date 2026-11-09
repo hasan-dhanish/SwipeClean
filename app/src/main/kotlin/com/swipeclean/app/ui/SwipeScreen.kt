@@ -28,7 +28,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -68,6 +71,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.swipeclean.app.data.FolderItem
 import com.swipeclean.app.data.MediaItem
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1545,7 +1549,7 @@ fun RecycleBinFolderScreen(
     onPermanentlyDelete: (List<Long>) -> Unit
 ) {
     val context = LocalContext.current
-    var inspectingItem by remember { mutableStateOf<MediaItem?>(null) }
+    var inspectingIndex by remember { mutableStateOf<Int?>(null) }
 
     val totalBytes = remember(state.items) {
         state.items.sumOf { it.size }
@@ -1562,7 +1566,7 @@ fun RecycleBinFolderScreen(
     // Intercept phone back gesture cleanly
     BackHandler {
         when {
-            inspectingItem != null -> inspectingItem = null
+            inspectingIndex != null -> inspectingIndex = null
             state.isSelecting -> onClearSelection()
             else -> onBack()
         }
@@ -1775,7 +1779,7 @@ fun RecycleBinFolderScreen(
                         }
                     }
 
-                    items(state.items, key = { it.id }) { item ->
+                    itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
                         val isSelected = state.selectedIds.contains(item.id)
                         Box(
                             modifier = Modifier
@@ -1791,7 +1795,7 @@ fun RecycleBinFolderScreen(
                                     if (state.isSelecting) {
                                         onToggleSelection(item.id)
                                     } else {
-                                        inspectingItem = item
+                                        inspectingIndex = index
                                     }
                                 }
                         ) {
@@ -1852,96 +1856,189 @@ fun RecycleBinFolderScreen(
         }
     }
 
-    // High Resolution Fullscreen Preview Modal
-    inspectingItem?.let { item ->
+    // High Resolution Fullscreen Preview Modal with Swipe Next / Prev
+    if (inspectingIndex != null && state.items.isNotEmpty()) {
+        val initialPage = inspectingIndex!!.coerceIn(0, state.items.size - 1)
+        val pagerState = rememberPagerState(
+            initialPage = initialPage,
+            pageCount = { state.items.size }
+        )
+        val coroutineScope = rememberCoroutineScope()
+        val currentItem = state.items.getOrNull(pagerState.currentPage)
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(item.uri)
-                    .size(1080, 1920)
-                    .crossfade(false)
-                    .allowHardware(true)
-                    .build(),
-                contentDescription = item.name,
-                contentScale = ContentScale.Fit,
+            HorizontalPager(
+                state = pagerState,
+                pageSpacing = 16.dp,
                 modifier = Modifier.fillMaxSize()
-            )
+            ) { page ->
+                val pageItem = state.items.getOrNull(page)
+                if (pageItem != null) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(pageItem.uri)
+                                .size(1080, 1920)
+                                .crossfade(false)
+                                .allowHardware(true)
+                                .build(),
+                            contentDescription = pageItem.name,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
 
-            // Top Close Button
-            IconButton(
-                onClick = { inspectingItem = null },
+            // Top Bar with Counter & Close Button
+            Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(16.dp)
-                    .align(Alignment.TopEnd)
-                    .background(Color(0x80000000), CircleShape)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0x80000000)
+                ) {
+                    Text(
+                        text = "${pagerState.currentPage + 1} of ${state.items.size}",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = { inspectingIndex = null },
+                    modifier = Modifier.background(Color(0x80000000), CircleShape)
+                ) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                }
+            }
+
+            // Quick Tap Navigation Chevrons
+            if (pagerState.currentPage > 0) {
+                IconButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 10.dp)
+                        .background(Color(0x60000000), CircleShape)
+                        .size(42.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Previous",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            if (pagerState.currentPage < state.items.size - 1) {
+                IconButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 10.dp)
+                        .background(Color(0x60000000), CircleShape)
+                        .size(42.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Next",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer { rotationZ = 180f }
+                    )
+                }
             }
 
             // Bottom Actions Bar
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color(0xEE000000), Color(0xFF000000))
+            if (currentItem != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color(0xEE000000), Color(0xFF000000))
+                            )
                         )
-                    )
-                    .navigationBarsPadding()
-                    .padding(20.dp)
-            ) {
-                Text(
-                    text = item.name,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${item.formattedSize} • ${item.formattedDateTime}",
-                    color = Color(0xFF8E8E93),
-                    fontSize = 13.sp
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .navigationBarsPadding()
+                        .padding(20.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            val id = item.id
-                            inspectingItem = null
-                            onRestore(listOf(id))
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A2F), contentColor = Color(0xFF34C759)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f).height(46.dp)
+                    Text(
+                        text = currentItem.name,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${currentItem.formattedSize} • ${currentItem.formattedDateTime}",
+                        color = Color(0xFF8E8E93),
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Restore to Gallery", fontWeight = FontWeight.Bold)
-                    }
+                        Button(
+                            onClick = {
+                                val id = currentItem.id
+                                onRestore(listOf(id))
+                                if (state.items.size <= 1) {
+                                    inspectingIndex = null
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A2F), contentColor = Color(0xFF34C759)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(46.dp)
+                        ) {
+                            Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore to Gallery", fontWeight = FontWeight.Bold)
+                        }
 
-                    Button(
-                        onClick = {
-                            val id = item.id
-                            inspectingItem = null
-                            onPermanentlyDelete(listOf(id))
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E1518), contentColor = Color(0xFFFF3B30)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f).height(46.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Delete", fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = {
+                                val id = currentItem.id
+                                onPermanentlyDelete(listOf(id))
+                                if (state.items.size <= 1) {
+                                    inspectingIndex = null
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E1518), contentColor = Color(0xFFFF3B30)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(46.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Delete", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
