@@ -1115,57 +1115,43 @@ fun SwipingDeckScreen(
         }
     }
 
-        // Left Edge Red Light Glow (Dynamic on Swipe Left)
+        // Left Edge Soft Red Light Glow (Dynamic on Swipe Left)
         if (leftGlowAlpha > 0.005f) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxHeight()
-                    .width(140.dp)
+                    .width(160.dp)
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
-                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.75f),
-                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.25f),
+                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.55f),
+                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.20f),
+                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.04f),
                                 Color.Transparent
                             )
                         )
                     )
             )
-            // Crisp edge neon line along the left screen rim
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .fillMaxHeight()
-                    .width(3.5.dp)
-                    .background(Color(0xFFFF3B30).copy(alpha = leftGlowAlpha))
-            )
         }
 
-        // Right Edge Green Light Glow (Dynamic on Swipe Right)
+        // Right Edge Soft Green Light Glow (Dynamic on Swipe Right)
         if (rightGlowAlpha > 0.005f) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
-                    .width(140.dp)
+                    .width(160.dp)
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.25f),
-                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.75f)
+                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.04f),
+                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.20f),
+                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.55f)
                             )
                         )
                     )
-            )
-            // Crisp edge neon line along the right screen rim
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .width(3.5.dp)
-                    .background(Color(0xFF34C759).copy(alpha = rightGlowAlpha))
             )
         }
     }
