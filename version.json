@@ -1,6 +1,6 @@
 {
-  "versionCode": 5,
-  "versionName": "1.4",
-  "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/releases/download/v1.4/SwipeClean.apk",
-  "changelog": "Smart Photo Sorting (Largest First, Newest First, Oldest First, Smallest First, Name A-Z) and Homepage Recycle Bin Utilities card!"
+  "versionCode": 6,
+  "versionName": "1.5",
+  "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/raw/main/SwipeClean.apk",
+  "changelog": "In-app Recycle Bin folder with quick Restore, Permanent Delete, multi-select, and horizontal swipe preview!"
 }
