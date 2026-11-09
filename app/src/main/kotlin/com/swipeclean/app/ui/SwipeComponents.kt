@@ -138,6 +138,7 @@ fun SwipeCard(
     triggerSwipeLeft: Boolean,
     triggerSwipeRight: Boolean,
     onTap: () -> Unit = {},
+    onDragOffset: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -146,6 +147,18 @@ fun SwipeCard(
     val dragX = remember(item.id) { Animatable(0f) }
     val dragY = remember(item.id) { Animatable(0f) }
     var isDismissed by remember(item.id) { mutableStateOf(false) }
+
+    LaunchedEffect(item.id) {
+        snapshotFlow { dragX.value }.collect { x ->
+            onDragOffset(x)
+        }
+    }
+
+    DisposableEffect(item.id) {
+        onDispose {
+            onDragOffset(0f)
+        }
+    }
 
     val screenWidthPx = with(LocalDensity.current) {
         LocalConfiguration.current.screenWidthDp.dp.toPx()
@@ -170,8 +183,14 @@ fun SwipeCard(
     }
 
     val progress = dragX.value / threshold
-    val keepAlpha = (progress * 0.8f).coerceIn(0f, 1f)
-    val trashAlpha = (-progress * 0.8f).coerceIn(0f, 1f)
+    val keepAlpha = (progress * 0.85f).coerceIn(0f, 1f)
+    val trashAlpha = (-progress * 0.85f).coerceIn(0f, 1f)
+
+    val dynamicBorderColor = when {
+        trashAlpha > 0.05f -> Color(0xFFFF3B30).copy(alpha = trashAlpha)
+        keepAlpha > 0.05f -> Color(0xFF34C759).copy(alpha = keepAlpha)
+        else -> Color(0xFF282836)
+    }
 
     Box(
         modifier = modifier
@@ -241,7 +260,7 @@ fun SwipeCard(
             modifier = Modifier
                 .fillMaxSize()
                 .shadow(16.dp, RoundedCornerShape(26.dp))
-                .border(1.5.dp, Color(0xFF282836), RoundedCornerShape(26.dp))
+                .border(1.5.dp, dynamicBorderColor, RoundedCornerShape(26.dp))
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AsyncImage(

@@ -51,7 +51,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -781,7 +783,26 @@ fun SwipingDeckScreen(
         )
     }
 
-    Scaffold(
+    val screenWidthPx = with(LocalDensity.current) {
+        LocalConfiguration.current.screenWidthDp.dp.toPx()
+    }
+    val threshold = screenWidthPx * 0.14f
+
+    var activeDragOffset by remember(currentCard?.id) { mutableFloatStateOf(0f) }
+
+    val leftGlowAlpha = remember(activeDragOffset) {
+        if (activeDragOffset < 0f) {
+            ((-activeDragOffset / threshold) * 0.95f).coerceIn(0f, 1f)
+        } else 0f
+    }
+    val rightGlowAlpha = remember(activeDragOffset) {
+        if (activeDragOffset > 0f) {
+            ((activeDragOffset / threshold) * 0.95f).coerceIn(0f, 1f)
+        } else 0f
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         containerColor = Color(0xFF000000),
         topBar = {
             TopAppBar(
@@ -882,6 +903,9 @@ fun SwipingDeckScreen(
                             triggerSwipeRight = triggerRight,
                             onTap = {
                                 inspectingItem = currentCard
+                            },
+                            onDragOffset = { offset ->
+                                activeDragOffset = offset
                             }
                         )
                     }
@@ -1088,6 +1112,61 @@ fun SwipingDeckScreen(
             } else {
                 Spacer(modifier = Modifier.height(20.dp))
             }
+        }
+    }
+
+        // Left Edge Red Light Glow (Dynamic on Swipe Left)
+        if (leftGlowAlpha > 0.005f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .width(140.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.75f),
+                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.25f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+            // Crisp edge neon line along the left screen rim
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .width(3.5.dp)
+                    .background(Color(0xFFFF3B30).copy(alpha = leftGlowAlpha))
+            )
+        }
+
+        // Right Edge Green Light Glow (Dynamic on Swipe Right)
+        if (rightGlowAlpha > 0.005f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(140.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.25f),
+                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.75f)
+                            )
+                        )
+                    )
+            )
+            // Crisp edge neon line along the right screen rim
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(3.5.dp)
+                    .background(Color(0xFF34C759).copy(alpha = rightGlowAlpha))
+            )
         }
     }
 
