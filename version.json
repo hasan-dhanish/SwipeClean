@@ -1,6 +1,6 @@
 {
-  "versionCode": 6,
-  "versionName": "1.5",
+  "versionCode": 7,
+  "versionName": "1.6",
   "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/raw/main/SwipeClean.apk",
-  "changelog": "In-app Recycle Bin folder with quick Restore, Permanent Delete, multi-select, and horizontal swipe preview!"
+  "changelog": "Added 'My Thumb is tired' rapid-tap mode with tactile ❌ and ✅ buttons to keep or discard photos effortlessly!"
 }

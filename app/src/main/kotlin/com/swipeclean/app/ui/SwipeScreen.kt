@@ -762,6 +762,7 @@ fun SwipingDeckScreen(
     var triggerLeft by remember { mutableStateOf(false) }
     var triggerRight by remember { mutableStateOf(false) }
     var isBusy by remember { mutableStateOf(false) }
+    var isThumbTired by remember { mutableStateOf(false) }
 
     // Intercept phone system back gesture (OxygenOS / Android Edge Swipe)
     BackHandler {
@@ -909,6 +910,21 @@ fun SwipingDeckScreen(
                     )
                 },
                 actions = {
+                    // "My Thumb is tired" quick toggle
+                    IconButton(
+                        onClick = { isThumbTired = !isThumbTired },
+                        modifier = if (isThumbTired) {
+                            Modifier
+                                .background(Color(0x330A84FF), CircleShape)
+                                .border(1.dp, Color(0xFF0A84FF), CircleShape)
+                        } else Modifier
+                    ) {
+                        Text(
+                            text = "🥱",
+                            fontSize = 18.sp
+                        )
+                    }
+
                     // Sort Button (Just the Icon)
                     IconButton(onClick = { showSortSheet = true }) {
                         Icon(
@@ -1110,75 +1126,231 @@ fun SwipingDeckScreen(
                     val canUndo = state.history.isNotEmpty() && !isBusy
                     val hasTrash = state.trashedItems.isNotEmpty()
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Undo button: Always present, activates when there is something to undo
-                        Surface(
-                            onClick = onUndo,
-                            enabled = canUndo,
-                            shape = RoundedCornerShape(24.dp),
-                            color = if (canUndo) Color(0xDD1C1C1E) else Color(0x5516161A),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (canUndo) Color(0x33FFFFFF) else Color(0x18FFFFFF)
-                            ),
-                            shadowElevation = if (canUndo) 6.dp else 0.dp,
-                            modifier = Modifier.height(42.dp)
+                    if (isThumbTired) {
+                        // "My Thumb is tired" Rapid-Tap Mode
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            // ❌ Discard / Trash Button
+                            Surface(
+                                onClick = {
+                                    if (!isBusy) {
+                                        isBusy = true
+                                        triggerLeft = true
+                                    }
+                                },
+                                shape = CircleShape,
+                                color = Color(0xFF2E1518),
+                                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFFF3B30)),
+                                shadowElevation = 10.dp,
+                                modifier = Modifier.size(70.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Undo,
-                                    contentDescription = "Undo",
-                                    tint = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF555562),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Undo",
-                                    color = if (canUndo) Color.White else Color(0xFF555562),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("❌", fontSize = 28.sp)
+                                }
+                            }
+
+                            // ↩ Undo Button
+                            Surface(
+                                onClick = onUndo,
+                                enabled = canUndo,
+                                shape = CircleShape,
+                                color = if (canUndo) Color(0xFF292416) else Color(0xFF1C1C24),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.5.dp,
+                                    if (canUndo) Color(0xFFFFB300).copy(alpha = 0.8f) else Color(0xFF333342)
+                                ),
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Undo,
+                                        contentDescription = "Undo",
+                                        tint = if (canUndo) Color(0xFFFFB300) else Color(0xFF555566),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+
+                            // ✅ Keep Button
+                            Surface(
+                                onClick = {
+                                    if (!isBusy) {
+                                        isBusy = true
+                                        triggerRight = true
+                                    }
+                                },
+                                shape = CircleShape,
+                                color = Color(0xFF14291A),
+                                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF34C759)),
+                                shadowElevation = 10.dp,
+                                modifier = Modifier.size(70.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("✅", fontSize = 28.sp)
+                                }
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                        // Trash button: Next to Undo button
+                        // Controls below buttons (Back to swiping + Trash sheet if any)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Surface(
+                                onClick = { isThumbTired = false },
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0x22FFFFFF),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x33FFFFFF))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("✋", fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Back to swiping",
+                                        color = Color(0xFF8E8E93),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            if (hasTrash) {
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Surface(
+                                    onClick = { showTrashSheet = true },
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFF2E1518),
+                                    border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0xFFFF3B30).copy(alpha = 0.5f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Trash",
+                                            tint = Color(0xFFFF3B30),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "${state.trashedItems.size}",
+                                            color = Color(0xFFFF3B30),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Standard Mode: Undo + Trash
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Undo button: Always present, activates when there is something to undo
+                            Surface(
+                                onClick = onUndo,
+                                enabled = canUndo,
+                                shape = RoundedCornerShape(24.dp),
+                                color = if (canUndo) Color(0xDD1C1C1E) else Color(0x5516161A),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (canUndo) Color(0x33FFFFFF) else Color(0x18FFFFFF)
+                                ),
+                                shadowElevation = if (canUndo) 6.dp else 0.dp,
+                                modifier = Modifier.height(42.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Undo,
+                                        contentDescription = "Undo",
+                                        tint = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF555562),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Undo",
+                                        color = if (canUndo) Color.White else Color(0xFF555562),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            // Trash button: Next to Undo button
+                            Surface(
+                                onClick = { showTrashSheet = true },
+                                shape = RoundedCornerShape(24.dp),
+                                color = if (hasTrash) Color(0xFF2E1518) else Color(0x5516161A),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (hasTrash) Color(0xFFFF3B30).copy(alpha = 0.5f) else Color(0x18FFFFFF)
+                                ),
+                                shadowElevation = if (hasTrash) 6.dp else 0.dp,
+                                modifier = Modifier.height(42.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Recycle Bin",
+                                        tint = if (hasTrash) Color(0xFFFF3B30) else Color(0xFF555562),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (hasTrash) "Trash (${state.trashedItems.size})" else "Trash",
+                                        color = if (hasTrash) Color(0xFFFF3B30) else Color(0xFF555562),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // "My Thumb is tired" Button
                         Surface(
-                            onClick = { showTrashSheet = true },
-                            shape = RoundedCornerShape(24.dp),
-                            color = if (hasTrash) Color(0xFF2E1518) else Color(0x5516161A),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (hasTrash) Color(0xFFFF3B30).copy(alpha = 0.5f) else Color(0x18FFFFFF)
-                            ),
-                            shadowElevation = if (hasTrash) 6.dp else 0.dp,
-                            modifier = Modifier.height(42.dp)
+                            onClick = { isThumbTired = true },
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFF1C1C1E),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x330A84FF)),
+                            shadowElevation = 2.dp,
+                            modifier = Modifier.height(34.dp)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Recycle Bin",
-                                    tint = if (hasTrash) Color(0xFFFF3B30) else Color(0xFF555562),
-                                    modifier = Modifier.size(16.dp)
-                                )
+                                Text("🥱", fontSize = 13.sp)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (hasTrash) "Trash (${state.trashedItems.size})" else "Trash",
-                                    color = if (hasTrash) Color(0xFFFF3B30) else Color(0xFF555562),
-                                    fontSize = 13.sp,
+                                    text = "My Thumb is tired",
+                                    color = Color(0xFF0A84FF),
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
