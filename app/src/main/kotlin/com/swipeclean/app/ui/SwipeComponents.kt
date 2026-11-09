@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.*
@@ -260,38 +259,6 @@ fun SwipeCard(
                         .fillMaxSize()
                         .background(Color.Black)
                 )
-
-                // Top Date & Time Floating Pill (Apple Photos Style)
-                if (item.formattedDateTime.isNotBlank()) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color(0xCC000000),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0x33FFFFFF)),
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = null,
-                                tint = Color(0xFF0A84FF),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = item.formattedDateTime,
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 0.2.sp
-                            )
-                        }
-                    }
-                }
 
                 // KEEP Stamp
                 if (keepAlpha > 0.02f) {

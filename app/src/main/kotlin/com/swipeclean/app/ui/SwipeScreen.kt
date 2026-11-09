@@ -30,10 +30,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.SystemUpdate
 import com.swipeclean.app.updater.DownloadState
 import com.swipeclean.app.updater.UpdateInfo
@@ -177,7 +179,8 @@ fun SwipeCleanAppRoot(
                             trashLauncher.launch(request)
                         }
                     },
-                    onRemoveFromTrash = { item -> viewModel.removeFromTrash(item) }
+                    onRemoveFromTrash = { item -> viewModel.removeFromTrash(item) },
+                    onSortChange = { sort -> viewModel.setSortOrder(sort) }
                 )
             }
         }
@@ -671,11 +674,13 @@ fun SwipingDeckScreen(
     onBack: () -> Unit,
     onResetFolder: () -> Unit,
     onRequestTrash: () -> Unit,
-    onRemoveFromTrash: (MediaItem) -> Unit
+    onRemoveFromTrash: (MediaItem) -> Unit,
+    onSortChange: (PhotoSort) -> Unit
 ) {
     val context = LocalContext.current
     var showTrashSheet by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+    var showSortSheet by remember { mutableStateOf(false) }
     var inspectingItem by remember { mutableStateOf<MediaItem?>(null) }
 
     var triggerLeft by remember { mutableStateOf(false) }
@@ -788,6 +793,36 @@ fun SwipingDeckScreen(
                     }
                 },
                 actions = {
+                    // Apple Sort Order Pill Button
+                    Surface(
+                        onClick = { showSortSheet = true },
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF1C1C1E),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF38383A)),
+                        modifier = Modifier
+                            .padding(end = 4.dp)
+                            .height(32.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Sort,
+                                contentDescription = "Sort",
+                                tint = Color(0xFF0A84FF),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = state.currentSort.label,
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
                     IconButton(onClick = { showResetDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.RestartAlt,
@@ -1039,6 +1074,17 @@ fun SwipingDeckScreen(
         }
     }
 
+    if (showSortSheet) {
+        SortOrderBottomSheet(
+            currentSort = state.currentSort,
+            onSelectSort = { sort ->
+                showSortSheet = false
+                onSortChange(sort)
+            },
+            onDismiss = { showSortSheet = false }
+        )
+    }
+
     if (showTrashSheet) {
         PendingTrashBottomSheet(
             items = state.trashedItems,
@@ -1195,3 +1241,88 @@ fun PendingTrashBottomSheet(
         }
     }
 }
+
+/**
+ * Authentic Apple Bottom Sheet for Selecting Deck Photo Sorting Order
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SortOrderBottomSheet(
+    currentSort: PhotoSort,
+    onSelectSort: (PhotoSort) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+        ) {
+            Text(
+                text = "Sort Photos",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Choose order of images in this deck",
+                color = Color(0xFF8E8E93),
+                fontSize = 13.sp
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            PhotoSort.values().forEach { sortOption ->
+                val isSelected = currentSort == sortOption
+                Surface(
+                    onClick = { onSelectSort(sortOption) },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isSelected) Color(0xFF2C2C2E) else Color.Transparent,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = sortOption.label,
+                                color = if (isSelected) Color(0xFF0A84FF) else Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = sortOption.subtitle,
+                                color = Color(0xFF8E8E93),
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color(0xFF0A84FF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+

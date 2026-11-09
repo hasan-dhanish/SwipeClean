@@ -17,6 +17,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class PhotoSort(val label: String, val subtitle: String) {
+    SIZE_DESC("Largest First", "Free up maximum storage space"),
+    DATE_DESC("Newest First", "Most recent photos & screenshots"),
+    DATE_ASC("Oldest First", "Clean older memories from years ago"),
+    SIZE_ASC("Smallest First", "Clear small files, memes & icons"),
+    NAME_ASC("Name (A to Z)", "Alphabetical order by file name")
+}
+
 sealed interface UiState {
     object Loading : UiState
     data class FolderList(
@@ -32,7 +40,8 @@ sealed interface UiState {
         val keptCount: Int,
         val allFolderItemIds: List<Long>,
         val history: List<SwipeAction>,
-        val isAllReviewedInitially: Boolean = false
+        val isAllReviewedInitially: Boolean = false,
+        val currentSort: PhotoSort = PhotoSort.DATE_DESC
     ) : UiState
 }
 
@@ -145,16 +154,43 @@ class SwipeViewModel(
             val folderKeptCount = allFolderItems.count { keptIds.contains(it.id) }
             val isAllReviewed = remainingItems.isEmpty() && allFolderItems.isNotEmpty()
 
+            val savedSortName = trashStorage.getSavedSortOrder()
+            val currentSort = try { PhotoSort.valueOf(savedSortName) } catch (_: Exception) { PhotoSort.DATE_DESC }
+            val sortedRemaining = sortItems(remainingItems, currentSort)
+
             _uiState.value = UiState.Swiping(
                 folderName = folderName,
                 totalCount = allFolderItems.size,
-                remainingItems = remainingItems,
+                remainingItems = sortedRemaining,
                 trashedItems = existingTrashedItems,
                 keptCount = folderKeptCount,
                 allFolderItemIds = allFolderItems.map { it.id },
                 history = emptyList(),
-                isAllReviewedInitially = isAllReviewed
+                isAllReviewedInitially = isAllReviewed,
+                currentSort = currentSort
             )
+        }
+    }
+
+    fun setSortOrder(sort: PhotoSort) {
+        val state = _uiState.value as? UiState.Swiping ?: return
+        trashStorage.setSavedSortOrder(sort.name)
+        val sortedRemaining = sortItems(state.remainingItems, sort)
+        _uiState.update {
+            state.copy(
+                remainingItems = sortedRemaining,
+                currentSort = sort
+            )
+        }
+    }
+
+    private fun sortItems(items: List<MediaItem>, sort: PhotoSort): List<MediaItem> {
+        return when (sort) {
+            PhotoSort.SIZE_DESC -> items.sortedWith(compareByDescending<MediaItem> { it.size }.thenByDescending { it.dateTaken })
+            PhotoSort.DATE_DESC -> items.sortedByDescending { it.dateTaken }
+            PhotoSort.DATE_ASC -> items.sortedBy { it.dateTaken }
+            PhotoSort.SIZE_ASC -> items.sortedWith(compareBy<MediaItem> { it.size }.thenByDescending { it.dateTaken })
+            PhotoSort.NAME_ASC -> items.sortedBy { it.name.lowercase() }
         }
     }
 

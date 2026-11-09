@@ -73,6 +73,16 @@ class TrashStorage(context: Context) {
     }
 
     @Synchronized
+    fun getSavedSortOrder(): String {
+        return prefs.getString("saved_sort_order", "DATE_DESC") ?: "DATE_DESC"
+    }
+
+    @Synchronized
+    fun setSavedSortOrder(sortName: String) {
+        prefs.edit().putString("saved_sort_order", sortName).commit()
+    }
+
+    @Synchronized
     fun getKeptIds(): Set<Long> {
         return keptIds.toSet()
     }
