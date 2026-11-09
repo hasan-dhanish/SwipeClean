@@ -2,6 +2,7 @@ package com.swipeclean.app.ui
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -291,6 +292,12 @@ fun AppleFolderGridScreen(
     val context = LocalContext.current
     val screenshotFolder = folders.firstOrNull { it.name.contains("Screenshot", ignoreCase = true) }
     var showPendingTrashSheet by remember { mutableStateOf(false) }
+
+    if (showPendingTrashSheet) {
+        BackHandler {
+            showPendingTrashSheet = false
+        }
+    }
 
     val trashedBytes = remember(pendingTrashItems) {
         pendingTrashItems.sumOf { it.size }
@@ -687,6 +694,17 @@ fun SwipingDeckScreen(
     var triggerLeft by remember { mutableStateOf(false) }
     var triggerRight by remember { mutableStateOf(false) }
     var isBusy by remember { mutableStateOf(false) }
+
+    // Intercept phone system back gesture (OxygenOS / Android Edge Swipe)
+    BackHandler {
+        when {
+            inspectingItem != null -> inspectingItem = null
+            showSortSheet -> showSortSheet = false
+            showTrashSheet -> showTrashSheet = false
+            showResetDialog -> showResetDialog = false
+            else -> onBack()
+        }
+    }
 
     val trashedBytes = remember(state.trashedItems) {
         state.trashedItems.sumOf { it.size }
