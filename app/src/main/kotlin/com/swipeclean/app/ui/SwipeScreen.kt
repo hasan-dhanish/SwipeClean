@@ -8,7 +8,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -788,18 +791,35 @@ fun SwipingDeckScreen(
     }
     val threshold = screenWidthPx * 0.14f
 
-    var activeDragOffset by remember(currentCard?.id) { mutableFloatStateOf(0f) }
+    var activeDragOffset by remember { mutableFloatStateOf(0f) }
 
-    val leftGlowAlpha = remember(activeDragOffset) {
-        if (activeDragOffset < 0f) {
-            ((-activeDragOffset / threshold) * 0.95f).coerceIn(0f, 1f)
-        } else 0f
-    }
-    val rightGlowAlpha = remember(activeDragOffset) {
-        if (activeDragOffset > 0f) {
-            ((activeDragOffset / threshold) * 0.95f).coerceIn(0f, 1f)
-        } else 0f
-    }
+    val targetLeftGlow = if (activeDragOffset < 0f) {
+        ((-activeDragOffset / threshold) * 0.95f).coerceIn(0f, 1f)
+    } else 0f
+
+    val targetRightGlow = if (activeDragOffset > 0f) {
+        ((activeDragOffset / threshold) * 0.95f).coerceIn(0f, 1f)
+    } else 0f
+
+    val leftGlowAlpha by animateFloatAsState(
+        targetValue = targetLeftGlow,
+        animationSpec = if (targetLeftGlow > 0f) {
+            tween(durationMillis = 80, easing = LinearEasing)
+        } else {
+            tween(durationMillis = 500, easing = LinearOutSlowInEasing)
+        },
+        label = "LeftGlowAlpha"
+    )
+
+    val rightGlowAlpha by animateFloatAsState(
+        targetValue = targetRightGlow,
+        animationSpec = if (targetRightGlow > 0f) {
+            tween(durationMillis = 80, easing = LinearEasing)
+        } else {
+            tween(durationMillis = 500, easing = LinearOutSlowInEasing)
+        },
+        label = "RightGlowAlpha"
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -1115,19 +1135,20 @@ fun SwipingDeckScreen(
         }
     }
 
-        // Left Edge Soft Red Light Glow (Dynamic on Swipe Left)
-        if (leftGlowAlpha > 0.005f) {
+        // Left Edge Soft Red Light Glow (Dynamic on Swipe Left with organic decay)
+        if (leftGlowAlpha > 0.001f) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxHeight()
-                    .width(160.dp)
+                    .width(180.dp)
+                    .graphicsLayer { alpha = leftGlowAlpha }
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
-                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.55f),
-                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.20f),
-                                Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.04f),
+                                Color(0xFFFF3B30).copy(alpha = 0.50f),
+                                Color(0xFFFF3B30).copy(alpha = 0.18f),
+                                Color(0xFFFF3B30).copy(alpha = 0.04f),
                                 Color.Transparent
                             )
                         )
@@ -1135,20 +1156,21 @@ fun SwipingDeckScreen(
             )
         }
 
-        // Right Edge Soft Green Light Glow (Dynamic on Swipe Right)
-        if (rightGlowAlpha > 0.005f) {
+        // Right Edge Soft Green Light Glow (Dynamic on Swipe Right with organic decay)
+        if (rightGlowAlpha > 0.001f) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
-                    .width(160.dp)
+                    .width(180.dp)
+                    .graphicsLayer { alpha = rightGlowAlpha }
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.04f),
-                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.20f),
-                                Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.55f)
+                                Color(0xFF34C759).copy(alpha = 0.04f),
+                                Color(0xFF34C759).copy(alpha = 0.18f),
+                                Color(0xFF34C759).copy(alpha = 0.50f)
                             )
                         )
                     )
