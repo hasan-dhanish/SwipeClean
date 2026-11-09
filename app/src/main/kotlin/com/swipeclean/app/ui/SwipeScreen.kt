@@ -851,8 +851,7 @@ fun SwipingDeckScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
+                .padding(padding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             LinearProgressIndicator(
@@ -863,6 +862,7 @@ fun SwipingDeckScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
                     .height(2.5.dp)
                     .clip(CircleShape),
                 color = Color(0xFF0A84FF),
@@ -877,178 +877,182 @@ fun SwipingDeckScreen(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                if (currentCard != null) {
-                    if (nextCard != null) {
-                        BackgroundCard(
-                            item = nextCard,
-                            scale = 0.94f,
-                            offsetY = 14f
-                        )
-                    }
-                    key(currentCard.id) {
-                        SwipeCard(
-                            item = currentCard,
-                            onSwipedLeft = {
-                                isBusy = false
-                                triggerLeft = false
-                                onSwipeLeft()
-                            },
-                            onSwipedRight = {
-                                isBusy = false
-                                triggerRight = false
-                                onSwipeRight()
-                            },
-                            triggerSwipeLeft = triggerLeft,
-                            triggerSwipeRight = triggerRight,
-                            onTap = {
-                                inspectingItem = currentCard
-                            },
-                            onDragOffset = { offset ->
-                                activeDragOffset = offset
-                            }
-                        )
-                    }
-
-                    // Left Edge Red Light Glow (Bounded strictly to Image Card height)
-                    if (leftGlowAlpha > 0.005f) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .fillMaxHeight()
-                                .width(90.dp)
-                                .clip(RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.70f),
-                                            Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.20f),
-                                            Color.Transparent
-                                        )
-                                    )
-                                )
-                        )
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .fillMaxHeight()
-                                .width(3.5.dp)
-                                .clip(RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp))
-                                .background(Color(0xFFFF3B30).copy(alpha = leftGlowAlpha))
-                        )
-                    }
-
-                    // Right Edge Green Light Glow (Bounded strictly to Image Card height)
-                    if (rightGlowAlpha > 0.005f) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .fillMaxHeight()
-                                .width(90.dp)
-                                .clip(RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.20f),
-                                            Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.70f)
-                                        )
-                                    )
-                                )
-                        )
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .fillMaxHeight()
-                                .width(3.5.dp)
-                                .clip(RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp))
-                                .background(Color(0xFF34C759).copy(alpha = rightGlowAlpha))
-                        )
-                    }
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(26.dp),
-                        color = Color(0xFF1C1C1E),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF38383A)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Column(
+                // Card deck container with horizontal padding for cards
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (currentCard != null) {
+                        if (nextCard != null) {
+                            BackgroundCard(
+                                item = nextCard,
+                                scale = 0.94f,
+                                offsetY = 14f
+                            )
+                        }
+                        key(currentCard.id) {
+                            SwipeCard(
+                                item = currentCard,
+                                onSwipedLeft = {
+                                    isBusy = false
+                                    triggerLeft = false
+                                    onSwipeLeft()
+                                },
+                                onSwipedRight = {
+                                    isBusy = false
+                                    triggerRight = false
+                                    onSwipeRight()
+                                },
+                                triggerSwipeLeft = triggerLeft,
+                                triggerSwipeRight = triggerRight,
+                                onTap = {
+                                    inspectingItem = currentCard
+                                },
+                                onDragOffset = { offset ->
+                                    activeDragOffset = offset
+                                }
+                            )
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(26.dp),
+                            color = Color(0xFF1C1C1E),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF38383A)),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(16.dp)
                         ) {
-                            Text("🎉", fontSize = 48.sp)
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "All Caught Up!",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "You have reviewed all photos in ${state.folderName}.\n${state.keptCount} kept • ${state.trashedItems.size} pending in Recycle Bin.",
-                                style = MaterialTheme.typography.bodySmall,
-                                textAlign = TextAlign.Center,
-                                color = Color(0xFF8E8E93)
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("🎉", fontSize = 48.sp)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "All Caught Up!",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "You have reviewed all photos in ${state.folderName}.\n${state.keptCount} kept • ${state.trashedItems.size} pending in Recycle Bin.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center,
+                                    color = Color(0xFF8E8E93)
+                                )
 
-                            if (state.trashedItems.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Surface(
-                                    onClick = onRequestTrash,
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFF2E1518),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF3B30).copy(alpha = 0.5f))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                if (state.trashedItems.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Surface(
+                                        onClick = onRequestTrash,
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = Color(0xFF2E1518),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF3B30).copy(alpha = 0.5f))
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = null,
-                                            tint = Color(0xFFFF3B30),
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            "Move ${state.trashedItems.size} to Trash ($formattedTrashSize)",
-                                            color = Color(0xFFFF3B30),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
-                                        )
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFF3B30),
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                "Move ${state.trashedItems.size} to Trash ($formattedTrashSize)",
+                                                color = Color(0xFFFF3B30),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
+                                            )
+                                        }
                                     }
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.height(18.dp))
-                            HorizontalDivider(color = Color(0xFF2C2C2E))
-                            Spacer(modifier = Modifier.height(14.dp))
+                                Spacer(modifier = Modifier.height(18.dp))
+                                HorizontalDivider(color = Color(0xFF2C2C2E))
+                                Spacer(modifier = Modifier.height(14.dp))
 
-                            Text(
-                                text = "Want to review from the beginning?",
-                                color = Color(0xFF8E8E93),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(
-                                onClick = { showResetDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2C2C2E)),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(imageVector = Icons.Default.RestartAlt, contentDescription = null, tint = Color(0xFF0A84FF), modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Choose Again from Beginning", color = Color(0xFF0A84FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            }
+                                Text(
+                                    text = "Want to review from the beginning?",
+                                    color = Color(0xFF8E8E93),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = { showResetDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2C2C2E)),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.RestartAlt, contentDescription = null, tint = Color(0xFF0A84FF), modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Choose Again from Beginning", color = Color(0xFF0A84FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-                            TextButton(onClick = onBack) {
-                                Text("Back to Albums", color = Color(0xFF8E8E93), fontSize = 12.sp)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                TextButton(onClick = onBack) {
+                                    Text("Back to Albums", color = Color(0xFF8E8E93), fontSize = 12.sp)
+                                }
                             }
                         }
                     }
+                }
+
+                // Left Edge Red Light Glow (Flush to physical screen left edge, bounded to card deck height)
+                if (currentCard != null && leftGlowAlpha > 0.005f) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxHeight()
+                            .width(110.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.75f),
+                                        Color(0xFFFF3B30).copy(alpha = leftGlowAlpha * 0.25f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxHeight()
+                            .width(4.dp)
+                            .background(Color(0xFFFF3B30).copy(alpha = leftGlowAlpha))
+                    )
+                }
+
+                // Right Edge Green Light Glow (Flush to physical screen right edge, bounded to card deck height)
+                if (currentCard != null && rightGlowAlpha > 0.005f) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .width(110.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.25f),
+                                        Color(0xFF34C759).copy(alpha = rightGlowAlpha * 0.75f)
+                                    )
+                                )
+                            )
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .width(4.dp)
+                            .background(Color(0xFF34C759).copy(alpha = rightGlowAlpha))
+                    )
                 }
             }
 
