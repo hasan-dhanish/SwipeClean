@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -786,77 +787,24 @@ fun SwipingDeckScreen(
                     )
                 },
                 actions = {
-                    // Apple Sort Order Pill Button
-                    Surface(
-                        onClick = { showSortSheet = true },
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF1C1C1E),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF38383A)),
-                        modifier = Modifier
-                            .padding(end = 4.dp)
-                            .height(32.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Sort,
-                                contentDescription = "Sort",
-                                tint = Color(0xFF0A84FF),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = state.currentSort.label,
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                    // Sort Button (Just the Icon)
+                    IconButton(onClick = { showSortSheet = true }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = "Sort",
+                            tint = Color(0xFF0A84FF),
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
 
+                    // Restart Button (Just the Icon)
                     IconButton(onClick = { showResetDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.RestartAlt,
                             contentDescription = "Start Over",
-                            tint = Color(0xFF8E8E93)
+                            tint = Color(0xFF8E8E93),
+                            modifier = Modifier.size(22.dp)
                         )
-                    }
-
-                    if (state.trashedItems.isNotEmpty()) {
-                        Surface(
-                            onClick = { showTrashSheet = true },
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFF261518),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF3B30).copy(alpha = 0.4f)),
-                            modifier = Modifier.padding(end = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFF3B30),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "${state.trashedItems.size}",
-                                    color = Color(0xFFFF3B30),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = formattedTrashSize,
-                                    color = Color(0xFF8E8E93),
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
                     }
                 }
             )
@@ -877,13 +825,13 @@ fun SwipingDeckScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(3.dp)
+                    .height(2.5.dp)
                     .clip(CircleShape),
                 color = Color(0xFF0A84FF),
                 trackColor = Color(0xFF1C1C1E)
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Box(
                 modifier = Modifier
@@ -1007,7 +955,7 @@ fun SwipingDeckScreen(
                 }
             }
 
-            // Bottom Area: Quick Undo pill & discreet progress counts
+            // Bottom Area: Undo button (always visible) + Trash button + discreet progress counts
             if (currentCard != null) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -1015,38 +963,85 @@ fun SwipingDeckScreen(
                         .fillMaxWidth()
                         .padding(top = 8.dp, bottom = 12.dp)
                 ) {
-                    if (state.history.isNotEmpty() && !isBusy) {
+                    val canUndo = state.history.isNotEmpty() && !isBusy
+                    val hasTrash = state.trashedItems.isNotEmpty()
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Undo button: Always present, activates when there is something to undo
                         Surface(
                             onClick = onUndo,
+                            enabled = canUndo,
                             shape = RoundedCornerShape(24.dp),
-                            color = Color(0xDD1C1C1E),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
-                            shadowElevation = 8.dp,
+                            color = if (canUndo) Color(0xDD1C1C1E) else Color(0x5516161A),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (canUndo) Color(0x33FFFFFF) else Color(0x18FFFFFF)
+                            ),
+                            shadowElevation = if (canUndo) 6.dp else 0.dp,
                             modifier = Modifier.height(42.dp)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Undo,
-                                    contentDescription = "Quick Undo",
-                                    tint = Color(0xFFFF9F0A), // Apple Amber
+                                    contentDescription = "Undo",
+                                    tint = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF555562),
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Undo",
-                                    color = Color.White,
+                                    color = if (canUndo) Color.White else Color(0xFF555562),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                    } else {
-                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // Trash button: Next to Undo button
+                        Surface(
+                            onClick = { showTrashSheet = true },
+                            shape = RoundedCornerShape(24.dp),
+                            color = if (hasTrash) Color(0xFF2E1518) else Color(0x5516161A),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (hasTrash) Color(0xFFFF3B30).copy(alpha = 0.5f) else Color(0x18FFFFFF)
+                            ),
+                            shadowElevation = if (hasTrash) 6.dp else 0.dp,
+                            modifier = Modifier.height(42.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Recycle Bin",
+                                    tint = if (hasTrash) Color(0xFFFF3B30) else Color(0xFF555562),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (hasTrash) "Trash (${state.trashedItems.size})" else "Trash",
+                                    color = if (hasTrash) Color(0xFFFF3B30) else Color(0xFF555562),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Discreet bottom counts (Unreviewed & Kept)
                     Row(
