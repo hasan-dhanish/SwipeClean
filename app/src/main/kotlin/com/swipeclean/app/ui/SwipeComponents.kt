@@ -138,6 +138,7 @@ fun SwipeCard(
     triggerSwipeLeft: Boolean,
     triggerSwipeRight: Boolean,
     onTap: () -> Unit = {},
+    wobbleDirection: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -145,7 +146,22 @@ fun SwipeCard(
 
     val dragX = remember(item.id) { Animatable(0f) }
     val dragY = remember(item.id) { Animatable(0f) }
+    val wobbleAnim = remember(item.id) { Animatable(0f) }
     var isDismissed by remember(item.id) { mutableStateOf(false) }
+
+    LaunchedEffect(wobbleDirection, item.id) {
+        if (wobbleDirection != 0 && !isDismissed) {
+            val targetOffset = if (wobbleDirection < 0) -85f else 85f
+            while (true) {
+                kotlinx.coroutines.delay(500)
+                wobbleAnim.animateTo(targetOffset, tween(420, easing = FastOutSlowInEasing))
+                wobbleAnim.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
+                kotlinx.coroutines.delay(1200)
+            }
+        } else {
+            wobbleAnim.snapTo(0f)
+        }
+    }
 
     val screenWidthPx = with(LocalDensity.current) {
         LocalConfiguration.current.screenWidthDp.dp.toPx()
@@ -169,7 +185,8 @@ fun SwipeCard(
         }
     }
 
-    val progress = dragX.value / threshold
+    val totalX = dragX.value + wobbleAnim.value
+    val progress = totalX / threshold
     val keepAlpha = (progress * 0.8f).coerceIn(0f, 1f)
     val trashAlpha = (-progress * 0.8f).coerceIn(0f, 1f)
 
@@ -177,14 +194,16 @@ fun SwipeCard(
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer {
-                translationX = dragX.value
+                val effectiveX = dragX.value + wobbleAnim.value
+                translationX = effectiveX
                 translationY = dragY.value
-                rotationZ = (dragX.value / 24f).coerceIn(-25f, 25f)
+                rotationZ = (effectiveX / 24f).coerceIn(-25f, 25f)
             }
             .pointerInput(item.id) {
                 if (isDismissed) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    scope.launch { wobbleAnim.snapTo(0f) }
                     var isDrag = false
                     var totalDragX = 0f
                     var totalDragY = 0f

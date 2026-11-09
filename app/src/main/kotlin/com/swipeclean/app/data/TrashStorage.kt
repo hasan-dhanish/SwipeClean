@@ -114,11 +114,11 @@ class TrashStorage(context: Context) {
 
     @Synchronized
     fun hasCompletedTutorial(): Boolean {
-        return prefs.getBoolean("has_completed_tutorial", false)
+        return prefs.getBoolean("has_completed_live_walkthrough_v3", false)
     }
 
     @Synchronized
     fun setTutorialCompleted(completed: Boolean = true) {
-        prefs.edit().putBoolean("has_completed_tutorial", completed).commit()
+        prefs.edit().putBoolean("has_completed_live_walkthrough_v3", completed).commit()
     }
 }

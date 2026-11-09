@@ -25,6 +25,17 @@ enum class PhotoSort(val label: String, val subtitle: String) {
     NAME_ASC("Name (A to Z)", "Alphabetical order by file name")
 }
 
+enum class LiveTutorialStep {
+    IDLE,
+    HIGHLIGHT_FOLDER,     // Step 1: Highlight first folder on homepage
+    SWIPE_LEFT_WOBBLE,    // Step 2: Card wobbles left ("Swipe left to trash")
+    HIGHLIGHT_UNDO,       // Step 3: Highlight Undo ("Oops! Pushed into trash? Tap Undo")
+    SWIPE_RIGHT_WOBBLE,   // Step 4: Card wobbles right ("Swipe right to keep")
+    TOUR_TRASH,           // Step 5: Highlight Trash button
+    TOUR_SORT,            // Step 6: Highlight Sort button
+    TOUR_RESTART          // Step 7: Highlight Restart button
+}
+
 sealed interface UiState {
     object Loading : UiState
     data class FolderList(
@@ -67,15 +78,24 @@ class SwipeViewModel(
     private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
 
-    private val _showTutorial = MutableStateFlow<Boolean>(!trashStorage.hasCompletedTutorial())
-    val showTutorial: StateFlow<Boolean> = _showTutorial.asStateFlow()
+    private val _tutorialStep = MutableStateFlow<LiveTutorialStep>(
+        if (!trashStorage.hasCompletedTutorial()) LiveTutorialStep.HIGHLIGHT_FOLDER else LiveTutorialStep.IDLE
+    )
+    val tutorialStep: StateFlow<LiveTutorialStep> = _tutorialStep.asStateFlow()
 
-    fun openTutorial() {
-        _showTutorial.value = true
+    fun startLiveTutorial() {
+        _tutorialStep.value = LiveTutorialStep.HIGHLIGHT_FOLDER
     }
 
-    fun dismissTutorial() {
-        _showTutorial.value = false
+    fun advanceTutorialStep(next: LiveTutorialStep) {
+        _tutorialStep.value = next
+        if (next == LiveTutorialStep.IDLE) {
+            trashStorage.setTutorialCompleted(true)
+        }
+    }
+
+    fun skipTutorial() {
+        _tutorialStep.value = LiveTutorialStep.IDLE
         trashStorage.setTutorialCompleted(true)
     }
 
@@ -181,6 +201,10 @@ class SwipeViewModel(
                 isAllReviewedInitially = isAllReviewed,
                 currentSort = currentSort
             )
+
+            if (_tutorialStep.value == LiveTutorialStep.HIGHLIGHT_FOLDER) {
+                _tutorialStep.value = LiveTutorialStep.SWIPE_LEFT_WOBBLE
+            }
         }
     }
 
@@ -230,6 +254,10 @@ class SwipeViewModel(
                 history = state.history + SwipeAction(currentItem, wasTrashed = false)
             )
         }
+
+        if (_tutorialStep.value == LiveTutorialStep.SWIPE_RIGHT_WOBBLE) {
+            _tutorialStep.value = LiveTutorialStep.TOUR_TRASH
+        }
     }
 
     fun swipeLeft() { // Trash (REMEMBER PENDING TRASH)
@@ -245,6 +273,10 @@ class SwipeViewModel(
                 trashedItems = state.trashedItems + currentItem,
                 history = state.history + SwipeAction(currentItem, wasTrashed = true)
             )
+        }
+
+        if (_tutorialStep.value == LiveTutorialStep.SWIPE_LEFT_WOBBLE) {
+            _tutorialStep.value = LiveTutorialStep.HIGHLIGHT_UNDO
         }
     }
 
@@ -274,6 +306,10 @@ class SwipeViewModel(
                 keptCount = newKeptCount,
                 history = newHistory
             )
+        }
+
+        if (_tutorialStep.value == LiveTutorialStep.HIGHLIGHT_UNDO) {
+            _tutorialStep.value = LiveTutorialStep.SWIPE_RIGHT_WOBBLE
         }
     }
 
