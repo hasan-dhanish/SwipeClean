@@ -892,6 +892,10 @@ fun SwipingDeckScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val density = LocalDensity.current
+            val stepOffsetYPx = with(density) { 16.dp.toPx() }
+            val deckProgress = (kotlin.math.abs(activeDragOffset) / (screenWidthPx * 0.40f)).coerceIn(0f, 1f)
+
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -899,11 +903,26 @@ fun SwipingDeckScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (currentCard != null) {
+                    val thirdCard = state.remainingItems.getOrNull(2)
+                    if (thirdCard != null) {
+                        BackgroundCard(
+                            item = thirdCard,
+                            scale = 0.86f + (0.93f - 0.86f) * deckProgress,
+                            offsetY = (stepOffsetYPx * 2f) - (stepOffsetYPx * deckProgress),
+                            scrimAlpha = 0.45f - 0.20f * deckProgress,
+                            metadataAlpha = 0f,
+                            shadowElevation = 4f + 6f * deckProgress,
+                            modifier = Modifier.graphicsLayer { alpha = 0.35f + 0.65f * deckProgress }
+                        )
+                    }
                     if (nextCard != null) {
                         BackgroundCard(
                             item = nextCard,
-                            scale = 0.94f,
-                            offsetY = 14f
+                            scale = 0.93f + (1.0f - 0.93f) * deckProgress,
+                            offsetY = stepOffsetYPx * (1f - deckProgress),
+                            scrimAlpha = 0.25f * (1f - deckProgress),
+                            metadataAlpha = 0.5f + 0.5f * deckProgress,
+                            shadowElevation = 10f + 6f * deckProgress
                         )
                     }
                     key(currentCard.id) {

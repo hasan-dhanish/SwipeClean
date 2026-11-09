@@ -322,59 +322,73 @@ fun SwipeCard(
                 }
 
                 // Bottom Metadata Gradient
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(130.dp)
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color(0xDD000000), Color(0xF0000000))
-                            )
-                        )
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
+                CardMetadataOverlay(
+                    item = item,
+                    alpha = 1f,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CardMetadataOverlay(
+    item: MediaItem,
+    alpha: Float = 1f,
+    modifier: Modifier = Modifier
+) {
+    if (alpha <= 0.01f) return
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(130.dp)
+            .graphicsLayer { this.alpha = alpha }
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.Transparent, Color(0xDD000000), Color(0xF0000000))
+                )
+            )
+            .padding(horizontal = 20.dp, vertical = 14.dp)
+    ) {
+        Column(
+            modifier = Modifier.align(Alignment.BottomStart)
+        ) {
+            if (item.formattedDateTime.isNotBlank()) {
+                Text(
+                    text = item.formattedDateTime,
+                    color = Color(0xFFEBEBF5).copy(alpha = 0.85f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+            }
+            Text(
+                text = item.name,
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFF3B30).copy(alpha = 0.85f)
                 ) {
-                    Column(
-                        modifier = Modifier.align(Alignment.BottomStart)
-                    ) {
-                        if (item.formattedDateTime.isNotBlank()) {
-                            Text(
-                                text = item.formattedDateTime,
-                                color = Color(0xFFEBEBF5).copy(alpha = 0.85f),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                        }
-                        Text(
-                            text = item.name,
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFFF3B30).copy(alpha = 0.85f)
-                            ) {
-                                Text(
-                                    text = item.formattedSize,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = item.bucketName,
-                                color = Color(0xFFB0B0C0),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
+                    Text(
+                        text = item.formattedSize,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = item.bucketName,
+                    color = Color(0xFFB0B0C0),
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         }
     }
@@ -385,6 +399,9 @@ fun BackgroundCard(
     item: MediaItem,
     scale: Float,
     offsetY: Float,
+    scrimAlpha: Float = 0f,
+    metadataAlpha: Float = 1f,
+    shadowElevation: Float = 10f,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -398,24 +415,42 @@ fun BackgroundCard(
                 scaleY = scale
                 translationY = offsetY
             }
-            .shadow(8.dp, RoundedCornerShape(26.dp))
-            .border(1.dp, Color(0xFF282836), RoundedCornerShape(26.dp))
+            .shadow(shadowElevation.dp, RoundedCornerShape(26.dp))
+            .border(1.5.dp, Color(0xFF282836), RoundedCornerShape(26.dp))
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(item.uri)
-                .size(1080, 1920)
-                .memoryCacheKey(item.uri.toString())
-                .diskCacheKey(item.uri.toString())
-                .crossfade(false)
-                .allowHardware(true)
-                .build(),
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(item.uri)
+                    .size(1080, 1920)
+                    .memoryCacheKey(item.uri.toString())
+                    .diskCacheKey(item.uri.toString())
+                    .crossfade(false)
+                    .allowHardware(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            )
+
+            // Dynamic depth scrim for 3D deck physical layering
+            if (scrimAlpha > 0.005f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = scrimAlpha))
+                )
+            }
+
+            // Bottom Metadata Overlay
+            CardMetadataOverlay(
+                item = item,
+                alpha = metadataAlpha,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
     }
 }
 
