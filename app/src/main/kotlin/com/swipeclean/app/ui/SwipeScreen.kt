@@ -12,6 +12,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -74,6 +75,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.swipeclean.app.data.FolderItem
 import com.swipeclean.app.data.MediaItem
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -850,10 +852,84 @@ fun SwipingDeckScreen(
     var triggerRight by remember { mutableStateOf(false) }
     var isBusy by remember { mutableStateOf(false) }
     var isThumbTired by remember { mutableStateOf(false) }
+    var showTiredAnnouncement by remember { mutableStateOf(false) }
+    var discardPop by remember { mutableStateOf(false) }
+    var undoPop by remember { mutableStateOf(false) }
+    var keepPop by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isThumbTired) {
+        if (isThumbTired) {
+            showTiredAnnouncement = true
+            discardPop = false
+            undoPop = false
+            keepPop = false
+            // Full-screen animated announcement showcases first
+            delay(1100)
+            showTiredAnnouncement = false
+            // Photo card animates to shape, then buttons pop in place with staggered spring bounces!
+            delay(60)
+            discardPop = true
+            delay(80)
+            undoPop = true
+            delay(80)
+            keepPop = true
+        } else {
+            showTiredAnnouncement = false
+            discardPop = false
+            undoPop = false
+            keepPop = false
+        }
+    }
+
+    val cardScale by animateFloatAsState(
+        targetValue = if (isThumbTired) 0.90f else 1.0f,
+        animationSpec = spring(
+            stiffness = Spring.StiffnessLow,
+            dampingRatio = Spring.DampingRatioMediumBouncy
+        ),
+        label = "CardDeckScale"
+    )
+
+    val cardOffsetY by animateDpAsState(
+        targetValue = if (isThumbTired) (-14).dp else 0.dp,
+        animationSpec = spring(
+            stiffness = Spring.StiffnessLow,
+            dampingRatio = Spring.DampingRatioMediumBouncy
+        ),
+        label = "CardDeckOffsetY"
+    )
+
+    val discardScale by animateFloatAsState(
+        targetValue = if (discardPop) 1.0f else 0.0f,
+        animationSpec = spring(
+            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = Spring.DampingRatioMediumBouncy
+        ),
+        label = "DiscardScale"
+    )
+
+    val undoScale by animateFloatAsState(
+        targetValue = if (undoPop) 1.0f else 0.0f,
+        animationSpec = spring(
+            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = Spring.DampingRatioMediumBouncy
+        ),
+        label = "UndoScale"
+    )
+
+    val keepScale by animateFloatAsState(
+        targetValue = if (keepPop) 1.0f else 0.0f,
+        animationSpec = spring(
+            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = Spring.DampingRatioMediumBouncy
+        ),
+        label = "KeepScale"
+    )
 
     // Intercept phone system back gesture (OxygenOS / Android Edge Swipe)
     BackHandler {
         when {
+            showTiredAnnouncement -> showTiredAnnouncement = false
             inspectingItem != null -> inspectingItem = null
             showSortSheet -> showSortSheet = false
             showTrashSheet -> showTrashSheet = false
@@ -1000,11 +1076,7 @@ fun SwipingDeckScreen(
                     // "My Thumb is tired" quick toggle
                     IconButton(
                         onClick = {
-                            val willActivate = !isThumbTired
-                            isThumbTired = willActivate
-                            if (willActivate) {
-                                Toast.makeText(context, "Entering Tired Thumb Mode", Toast.LENGTH_SHORT).show()
-                            }
+                            isThumbTired = !isThumbTired
                         },
                         modifier = if (isThumbTired) {
                             Modifier
@@ -1071,7 +1143,12 @@ fun SwipingDeckScreen(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .offset(y = cardOffsetY)
+                    .graphicsLayer {
+                        scaleX = cardScale
+                        scaleY = cardScale
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (currentCard != null) {
@@ -1220,7 +1297,7 @@ fun SwipingDeckScreen(
                     val hasTrash = state.trashedItems.isNotEmpty()
 
                     if (isThumbTired) {
-                        // "My Thumb is tired" Rapid-Tap Mode (Tactile Realistic Buttons)
+                        // "My Thumb is tired" Rapid-Tap Mode (Tactile Realistic Buttons with Spring Pop)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1228,59 +1305,83 @@ fun SwipingDeckScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Realistic ❌ Discard / Trash Button
-                            RealisticActionButton(
-                                onClick = {
-                                    if (!isBusy) {
-                                        isBusy = true
-                                        triggerLeft = true
-                                    }
-                                },
-                                icon = Icons.Default.Close,
-                                iconColor = Color(0xFFFF453A),
-                                gradientColors = listOf(Color(0xFF381216), Color(0xFF1C080A)),
-                                borderColor = Color(0xFFFF3B30),
-                                glowColor = Color(0xFFFF3B30),
-                                size = 72.dp,
-                                iconSize = 34.dp,
-                                contentDescription = "Discard"
-                            )
+                            // Realistic ❌ Discard / Trash Button (Pop Animation)
+                            Box(
+                                modifier = Modifier.graphicsLayer {
+                                    scaleX = discardScale
+                                    scaleY = discardScale
+                                    alpha = discardScale.coerceIn(0f, 1f)
+                                }
+                            ) {
+                                RealisticActionButton(
+                                    onClick = {
+                                        if (!isBusy) {
+                                            isBusy = true
+                                            triggerLeft = true
+                                        }
+                                    },
+                                    icon = Icons.Default.Close,
+                                    iconColor = Color(0xFFFF453A),
+                                    gradientColors = listOf(Color(0xFF381216), Color(0xFF1C080A)),
+                                    borderColor = Color(0xFFFF3B30),
+                                    glowColor = Color(0xFFFF3B30),
+                                    size = 72.dp,
+                                    iconSize = 34.dp,
+                                    contentDescription = "Discard"
+                                )
+                            }
 
-                            // Realistic ↩ Undo Button
-                            RealisticActionButton(
-                                onClick = onUndo,
-                                enabled = canUndo,
-                                icon = Icons.AutoMirrored.Filled.Undo,
-                                iconColor = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF555562),
-                                gradientColors = if (canUndo) {
-                                    listOf(Color(0xFF332612), Color(0xFF1C150A))
-                                } else {
-                                    listOf(Color(0xFF1C1C20), Color(0xFF121215))
-                                },
-                                borderColor = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF2C2C32),
-                                glowColor = if (canUndo) Color(0xFFFF9F0A) else Color.Transparent,
-                                size = 48.dp,
-                                iconSize = 22.dp,
-                                contentDescription = "Undo"
-                            )
+                            // Realistic ↩ Undo Button (Pop Animation)
+                            Box(
+                                modifier = Modifier.graphicsLayer {
+                                    scaleX = undoScale
+                                    scaleY = undoScale
+                                    alpha = undoScale.coerceIn(0f, 1f)
+                                }
+                            ) {
+                                RealisticActionButton(
+                                    onClick = onUndo,
+                                    enabled = canUndo,
+                                    icon = Icons.AutoMirrored.Filled.Undo,
+                                    iconColor = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF555562),
+                                    gradientColors = if (canUndo) {
+                                        listOf(Color(0xFF332612), Color(0xFF1C150A))
+                                    } else {
+                                        listOf(Color(0xFF1C1C20), Color(0xFF121215))
+                                    },
+                                    borderColor = if (canUndo) Color(0xFFFF9F0A) else Color(0xFF2C2C32),
+                                    glowColor = if (canUndo) Color(0xFFFF9F0A) else Color.Transparent,
+                                    size = 48.dp,
+                                    iconSize = 22.dp,
+                                    contentDescription = "Undo"
+                                )
+                            }
 
-                            // Realistic ✅ Keep / Tick Button
-                            RealisticActionButton(
-                                onClick = {
-                                    if (!isBusy) {
-                                        isBusy = true
-                                        triggerRight = true
-                                    }
-                                },
-                                icon = Icons.Default.Check,
-                                iconColor = Color(0xFF30D158),
-                                gradientColors = listOf(Color(0xFF13381E), Color(0xFF091F10)),
-                                borderColor = Color(0xFF34C759),
-                                glowColor = Color(0xFF34C759),
-                                size = 72.dp,
-                                iconSize = 34.dp,
-                                contentDescription = "Keep"
-                            )
+                            // Realistic ✅ Keep / Tick Button (Pop Animation)
+                            Box(
+                                modifier = Modifier.graphicsLayer {
+                                    scaleX = keepScale
+                                    scaleY = keepScale
+                                    alpha = keepScale.coerceIn(0f, 1f)
+                                }
+                            ) {
+                                RealisticActionButton(
+                                    onClick = {
+                                        if (!isBusy) {
+                                            isBusy = true
+                                            triggerRight = true
+                                        }
+                                    },
+                                    icon = Icons.Default.Check,
+                                    iconColor = Color(0xFF30D158),
+                                    gradientColors = listOf(Color(0xFF13381E), Color(0xFF091F10)),
+                                    borderColor = Color(0xFF34C759),
+                                    glowColor = Color(0xFF34C759),
+                                    size = 72.dp,
+                                    iconSize = 34.dp,
+                                    contentDescription = "Keep"
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -1495,6 +1596,115 @@ fun SwipingDeckScreen(
                         )
                     )
             )
+        }
+
+        // Full Screen Animated Announcement Overlay for Tired Thumb Mode
+        AnimatedVisibility(
+            visible = showTiredAnnouncement,
+            enter = fadeIn(tween(200)) + scaleIn(
+                initialScale = 0.82f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            ),
+            exit = fadeOut(tween(220)) + scaleOut(tween(220), targetScale = 1.06f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xE8000000))
+                    .clickable(onClick = {
+                        showTiredAnnouncement = false
+                        discardPop = true
+                        undoPop = true
+                        keepPop = true
+                    }),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    // Glowing Circular Badge
+                    Box(
+                        modifier = Modifier
+                            .size(104.dp)
+                            .shadow(
+                                elevation = 28.dp,
+                                shape = CircleShape,
+                                spotColor = Color(0xFF0A84FF),
+                                ambientColor = Color(0xFF0A84FF).copy(alpha = 0.5f)
+                            )
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    listOf(
+                                        Color(0xFF1E3048),
+                                        Color(0xFF101926),
+                                        Color(0xFF0A0F17)
+                                    )
+                                )
+                            )
+                            .border(
+                                2.dp,
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color(0xFF0A84FF),
+                                        Color(0xFF0A84FF).copy(alpha = 0.4f)
+                                    )
+                                ),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🥱",
+                            fontSize = 48.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Pill Tag
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0x330A84FF),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0A84FF))
+                    ) {
+                        Text(
+                            text = "CONSOLE ACTIVATED",
+                            color = Color(0xFF0A84FF),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Tired Thumb Mode",
+                        color = Color.White,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.5.sp,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Rest your thumb.\nRapid-tap buttons popping in…",
+                        color = Color(0xFF8E8E93),
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
     }
 
