@@ -1,6 +1,6 @@
 {
-  "versionCode": 7,
-  "versionName": "1.6",
+  "versionCode": 8,
+  "versionName": "1.7",
   "apkUrl": "https://github.com/hasan-dhanish/SwipeClean/raw/main/SwipeClean.apk",
-  "changelog": "Added 'My Thumb is tired' rapid-tap mode with tactile ❌ and ✅ buttons to keep or discard photos effortlessly!"
+  "changelog": "Cinematic full-screen Tired Thumb Mode announcement, smooth photo card morphing, and staggered spring-pop tactile buttons!"
 }
