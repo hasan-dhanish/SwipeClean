@@ -202,8 +202,10 @@ fun SwipeCleanAppRoot(
                 RecycleBinFolderScreen(
                     state = state,
                     onBack = { viewModel.backToFolders() },
+                    onStartSelection = { viewModel.startRecycleBinSelection() },
                     onToggleSelection = { id -> viewModel.toggleRecycleBinSelection(id) },
                     onSelectAll = { viewModel.selectAllRecycleBin() },
+                    onDeselectAll = { viewModel.deselectAllRecycleBin() },
                     onClearSelection = { viewModel.clearRecycleBinSelection() },
                     onRestore = { ids ->
                         viewModel.restoreItems(
@@ -1542,8 +1544,10 @@ fun SortOrderBottomSheet(
 fun RecycleBinFolderScreen(
     state: UiState.RecycleBin,
     onBack: () -> Unit,
+    onStartSelection: () -> Unit,
     onToggleSelection: (Long) -> Unit,
     onSelectAll: () -> Unit,
+    onDeselectAll: () -> Unit,
     onClearSelection: () -> Unit,
     onRestore: (List<Long>) -> Unit,
     onPermanentlyDelete: (List<Long>) -> Unit
@@ -1591,12 +1595,16 @@ fun RecycleBinFolderScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Recycle Bin",
+                            text = if (state.isSelecting) "Select Items" else "Recycle Bin",
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = if (state.items.isNotEmpty()) "${state.items.size} photos • $formattedTotalSize" else "0 items",
+                            text = if (state.isSelecting) {
+                                if (state.selectedIds.isNotEmpty()) "${state.selectedIds.size} selected" else "Tap photos to select"
+                            } else {
+                                if (state.items.isNotEmpty()) "${state.items.size} photos • $formattedTotalSize" else "0 items"
+                            },
                             color = Color(0xFF8E8E93),
                             fontSize = 12.sp
                         )
@@ -1606,10 +1614,10 @@ fun RecycleBinFolderScreen(
                     if (state.items.isNotEmpty()) {
                         if (state.isSelecting) {
                             TextButton(onClick = {
-                                if (state.selectedIds.size == state.items.size) onClearSelection() else onSelectAll()
+                                if (state.selectedIds.size == state.items.size) onDeselectAll() else onSelectAll()
                             }) {
                                 Text(
-                                    text = if (state.selectedIds.size == state.items.size) "Deselect" else "Select All",
+                                    text = if (state.selectedIds.size == state.items.size) "Deselect All" else "Select All",
                                     color = Color(0xFF0A84FF),
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -1618,7 +1626,7 @@ fun RecycleBinFolderScreen(
                                 Text("Done", color = Color(0xFF0A84FF), fontWeight = FontWeight.Bold)
                             }
                         } else {
-                            TextButton(onClick = onSelectAll) {
+                            TextButton(onClick = onStartSelection) {
                                 Text("Select", color = Color(0xFF0A84FF), fontWeight = FontWeight.SemiBold)
                             }
                         }

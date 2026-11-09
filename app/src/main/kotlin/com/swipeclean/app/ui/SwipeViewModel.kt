@@ -327,6 +327,14 @@ class SwipeViewModel(
         }
     }
 
+    fun startRecycleBinSelection() {
+        val state = _uiState.value as? UiState.RecycleBin ?: return
+        _uiState.value = state.copy(
+            selectedIds = emptySet(),
+            isSelecting = true
+        )
+    }
+
     fun toggleRecycleBinSelection(id: Long) {
         val state = _uiState.value as? UiState.RecycleBin ?: return
         val newSelected = if (state.selectedIds.contains(id)) {
@@ -336,7 +344,7 @@ class SwipeViewModel(
         }
         _uiState.value = state.copy(
             selectedIds = newSelected,
-            isSelecting = newSelected.isNotEmpty()
+            isSelecting = true
         )
     }
 
@@ -344,6 +352,14 @@ class SwipeViewModel(
         val state = _uiState.value as? UiState.RecycleBin ?: return
         _uiState.value = state.copy(
             selectedIds = state.items.map { it.id }.toSet(),
+            isSelecting = true
+        )
+    }
+
+    fun deselectAllRecycleBin() {
+        val state = _uiState.value as? UiState.RecycleBin ?: return
+        _uiState.value = state.copy(
+            selectedIds = emptySet(),
             isSelecting = true
         )
     }
